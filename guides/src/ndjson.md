@@ -37,8 +37,8 @@ parser.reset() // drop any buffered partial - ready for a fresh stream
 
 ### Types
 
-| Type                    | Kind      | Shape                                                                                                          |
-| ----------------------- | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| Type                    | Kind      | Shape                                                                                                         |
+| ----------------------- | --------- | ------------------------------------------------------------------------------------------------------------- |
 | `NDJSONParserInterface` | interface | The stateful stream-parser contract — `parse(chunk: string): readonly Record<string, unknown>[]` + `reset()`. |
 
 ```ts
@@ -49,8 +49,8 @@ const contract: NDJSONParserInterface = createNDJSONParser()
 
 ### Factories
 
-| API                  | Kind     | Builds…                                                     |
-| --------------------- | -------- | ------------------------------------------------------------ |
+| API                  | Kind     | Builds…                                                      |
+| -------------------- | -------- | ------------------------------------------------------------ |
 | `createNDJSONParser` | function | A working `NDJSONParserInterface`, backed by `NDJSONParser`. |
 
 ```ts
@@ -62,8 +62,8 @@ parser.parse('{"a":1}\n{"b":2}\n') // [{ a: 1 }, { b: 2 }]
 
 ### Entities
 
-| API            | Kind  | Summary                                                                                                                |
-| -------------- | ----- | ------------------------------------------------------------------------------------------------------------------------ |
+| API            | Kind  | Summary                                                                                                          |
+| -------------- | ----- | ---------------------------------------------------------------------------------------------------------------- |
 | `NDJSONParser` | class | The stateful NDJSON stream parser — implements `NDJSONParserInterface`, reassembles records split across chunks. |
 
 ## Methods
@@ -73,10 +73,10 @@ surface (AGENTS §22).
 
 #### `NDJSONParserInterface`
 
-| Method  | Returns                              | Behavior                                                                                                                                             |
-| ------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Method  | Returns                              | Behavior                                                                                                                                                   |
+| ------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parse` | `readonly Record<string, unknown>[]` | Append `chunk`, then return every COMPLETE `\n`-terminated line parsed to a record (malformed / non-record lines skipped); retain a trailing partial line. |
-| `reset` | `void`                                | Drop any buffered partial line — reset for a fresh stream.                                                                                           |
+| `reset` | `void`                               | Drop any buffered partial line — reset for a fresh stream.                                                                                                 |
 
 ```ts
 import { NDJSONParser } from '@orkestrel/ndjson'

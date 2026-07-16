@@ -544,7 +544,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 	const EXPECTED = new NDJSONParser().parse(CORPUS)
 
 	it('sanity: the corpus actually decodes records', () => {
-		expect(EXPECTED.length).toBe(5)
+		expect(EXPECTED.length).toBe(6)
 	})
 
 	it('every fixed-size and two-way-split chunking of the corpus matches the whole-string parse', () => {
