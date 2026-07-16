@@ -20,6 +20,9 @@ npm install @orkestrel/ndjson
 - Node.js >= 24
 - ESM + CJS (dual-format build)
 - One runtime dependency: `@orkestrel/contract`
+- A never-terminated line is buffered indefinitely by design — there is no
+  size limit, so callers fronting an untrusted or unbounded upstream should
+  enforce their own byte cap before feeding chunks in.
 
 ## Usage
 

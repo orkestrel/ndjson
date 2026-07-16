@@ -16,7 +16,10 @@
 > fresh stream. A pure functional primitive — no Emitter, no server / HTTP /
 > agent coupling; it never throws, on malformed input or otherwise. Pair it
 > with a streaming `TextDecoder` when reading a byte stream: the decoder
-> handles partial characters, the parser handles partial lines.
+> handles partial characters, the parser handles partial lines. A line that
+> is never terminated by a newline is buffered indefinitely by design — the
+> parser has no size limit, so a caller fronting an untrusted or unbounded
+> upstream must enforce its own byte cap before feeding chunks in.
 > Source: [`src/core`](../../src/core). Surfaced through the `@src/core`
 > barrel.
 
@@ -44,7 +47,9 @@ parser.reset() // drop any buffered partial - ready for a fresh stream
 ```ts
 import type { NDJSONParserInterface } from '@orkestrel/ndjson'
 
-const contract: NDJSONParserInterface = createNDJSONParser()
+function feed(parser: NDJSONParserInterface, chunk: string): readonly Record<string, unknown>[] {
+	return parser.parse(chunk)
+}
 ```
 
 ### Factories
@@ -73,10 +78,10 @@ surface (AGENTS §22).
 
 #### `NDJSONParserInterface`
 
-| Method  | Returns                              | Behavior                                                                                                                                                   |
-| ------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parse` | `readonly Record<string, unknown>[]` | Append `chunk`, then return every COMPLETE `\n`-terminated line parsed to a record (malformed / non-record lines skipped); retain a trailing partial line. |
-| `reset` | `void`                               | Drop any buffered partial line — reset for a fresh stream.                                                                                                 |
+| Method  | Returns                              | Behavior                                                                                                                                                                                                                                                                    |
+| ------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parse` | `readonly Record<string, unknown>[]` | Append `chunk`, then return every COMPLETE `\n`-terminated line parsed to a record (malformed / non-record lines skipped); retain a trailing partial line indefinitely until its newline arrives — callers fronting an unbounded upstream should cap input size themselves. |
+| `reset` | `void`                               | Drop any buffered partial line — reset for a fresh stream.                                                                                                                                                                                                                  |
 
 ```ts
 import { NDJSONParser } from '@orkestrel/ndjson'

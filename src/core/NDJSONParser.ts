@@ -1,5 +1,5 @@
 import type { NDJSONParserInterface } from './types.js'
-import { isRecord } from '@orkestrel/contract'
+import { isRecord, parseJSONAs } from '@orkestrel/contract'
 
 /**
  * A stateful NDJSON (newline-delimited JSON) stream parser — feed it string
@@ -10,9 +10,20 @@ import { isRecord } from '@orkestrel/contract'
  *   buffer, splits on `\n`, and emits every line BEFORE the last one (each one is
  *   `\n`-terminated, so it is complete); the final segment is the trailing partial
  *   line and is retained for the next call.
- * - **Records only, malformed-safe.** Each complete line is `JSON.parse`d inside a
- *   `try`/`catch`: a malformed line is silently skipped (never throws), and a
- *   non-object value is dropped — only plain records pass {@link isRecord}.
+ * - **Records only, malformed-safe.** Each complete line is parsed via
+ *   `parseJSONAs(line, isRecord)`: a malformed line is silently skipped (never
+ *   throws), and a non-object value is dropped — only plain records pass
+ *   {@link isRecord}.
+ *
+ * @example
+ * ```ts
+ * import { NDJSONParser } from '@orkestrel/ndjson'
+ *
+ * const parser = new NDJSONParser()
+ * parser.parse('{"a":1}\n{"b"') // [{ a: 1 }] - the second line is still partial
+ * parser.parse(':2}\n') // [{ b: 2 }] - the split line reassembled
+ * parser.reset() // drop any buffered partial - ready for a fresh stream
+ * ```
  */
 export class NDJSONParser implements NDJSONParserInterface {
 	#buffer = ''
@@ -37,11 +48,6 @@ export class NDJSONParser implements NDJSONParserInterface {
 	}
 
 	#line(line: string): Record<string, unknown> | undefined {
-		try {
-			const value: unknown = JSON.parse(line)
-			return isRecord(value) ? value : undefined
-		} catch {
-			return undefined
-		}
+		return parseJSONAs(line, isRecord)
 	}
 }

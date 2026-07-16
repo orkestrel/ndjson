@@ -1,17 +1,7 @@
 import { NDJSONParser } from '@src/core'
+import { seededRandom } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
-import {
-	BACKSLASH,
-	CR,
-	FF,
-	LF,
-	TAB,
-	VT,
-	chunkings,
-	feedAll,
-	mulberry32,
-	partition,
-} from '../../setup.js'
+import { BACKSLASH, CR, FF, LF, TAB, VT, chunkings, feedAll, partition } from '../../setup.js'
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
@@ -555,7 +545,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 	})
 
 	it('25 seeded-fuzz random partitions of the corpus all match the whole-string parse', () => {
-		const rng = mulberry32(0xc0ffee)
+		const rng = seededRandom(0xc0ffee)
 
 		for (let trial = 0; trial < 25; trial += 1) {
 			const chunks = partition(CORPUS, rng)
@@ -581,6 +571,57 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 		for (const character of CORPUS) records.push(...parser.parse(character))
 
 		expect(records).toEqual(EXPECTED)
+	})
+})
+
+describe('NDJSONParser — unicode chunk-boundary splits (astral / combining marks / CJK)', () => {
+	// A JSON string value carrying an astral-plane emoji pair (UTF-16 surrogate
+	// pairs — two code units each), a combining-mark sequence (a base character
+	// plus a DISTINCT combining-diacritic code point, not a precomposed glyph),
+	// and CJK ideographs. `parse()` does `buffer += chunk` BEFORE ever calling
+	// `JSON.parse`, so the raw UTF-16 code units are reassembled first — even a
+	// split that lands INSIDE a surrogate pair must still decode identically
+	// once both halves have arrived.
+	const astral = '\u{1F600}\u{1F601}' // 2 astral emoji = 4 UTF-16 code units (2 surrogate pairs)
+	const combining = 'éà' // base 'e' + combining acute, base 'a' + combining grave
+	const cjk = '你好世界'
+	const value = astral + combining + cjk
+	const line = JSON.stringify({ v: value }) + LF
+	const expected = [{ v: value }]
+
+	it('decodes the value byte-identically at every two-chunk split index (including mid-surrogate-pair cuts)', () => {
+		for (let cut = 0; cut <= line.length; cut += 1) {
+			const parser = new NDJSONParser()
+			const records = feedAll(parser, [line.slice(0, cut), line.slice(cut)])
+			expect(records).toEqual(expected)
+		}
+	})
+
+	it('decodes the value byte-identically fed one UTF-16 code unit at a time', () => {
+		const parser = new NDJSONParser()
+		const records: Record<string, unknown>[] = []
+		for (const unit of line.split('')) records.push(...parser.parse(unit))
+
+		expect(records).toEqual(expected)
+	})
+})
+
+describe('NDJSONParser — never-throws on adversarial nesting depth', () => {
+	// `#line` wraps `JSON.parse` in a `try`/`catch` specifically so pathological
+	// input (a stack-exhausting depth) is swallowed like any other malformed
+	// line, never fatal. Whether the RUNNING engine's `JSON.parse` actually
+	// throws a stack `RangeError` at this depth or parses it without limit is
+	// engine-dependent (the parser's contract holds either way) — the pin here
+	// is that `parse()` itself never throws, and the parser is not derailed for
+	// whatever comes next.
+	it('never throws on an extremely deeply nested single line, and a following line still parses', () => {
+		const depth = 100_000
+		const line = '{"a":'.repeat(depth) + '1' + '}'.repeat(depth) + LF
+
+		const parser = new NDJSONParser()
+
+		expect(() => parser.parse(line)).not.toThrow()
+		expect(parser.parse('{"ok":true}' + LF)).toEqual([{ ok: true }])
 	})
 })
 
@@ -632,5 +673,39 @@ describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)
 
 		expect(records).toHaveLength(count)
 		expect(records.every((record, index) => record['index'] === index)).toBe(true)
+	})
+})
+
+describe('NDJSONParser — SSE-benchmark-scale volume battery (CI-fast, deterministic)', () => {
+	it('10,000 records fed at varied chunk sizes: no loss, no duplication, no reorder', () => {
+		const count = 10_000
+		let stream = ''
+		for (let index = 0; index < count; index += 1) stream += JSON.stringify({ index }) + LF
+
+		for (const size of [1, 8, 64, 256, 1024, 4096]) {
+			const parser = new NDJSONParser()
+			const records: Record<string, unknown>[] = []
+			for (let position = 0; position < stream.length; position += size) {
+				records.push(...parser.parse(stream.slice(position, position + size)))
+			}
+
+			expect(records).toHaveLength(count)
+			expect(records.every((record, index) => record['index'] === index)).toBe(true)
+		}
+	})
+
+	it('reassembles one ~1MB single-line record fed in 1KB chunks', () => {
+		const payload = 'x'.repeat(1_000_000)
+		const line = JSON.stringify({ payload }) + LF
+
+		const parser = new NDJSONParser()
+		const records: Record<string, unknown>[] = []
+		for (let position = 0; position < line.length; position += 1024) {
+			records.push(...parser.parse(line.slice(position, position + 1024)))
+		}
+
+		expect(records).toHaveLength(1)
+		const [record] = records
+		expect(record).toEqual({ payload })
 	})
 })
