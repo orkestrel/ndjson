@@ -2,11 +2,10 @@
 // Vitest project (`setupFiles[0]`). Keep this file free of `node:*` and of
 // `document` / `window`: this package is core-only.
 //
-// Scoped to the `sse` corpus this workspace ships today (AGENTS §16.1): generic
+// Scoped to the `ndjson` corpus this workspace ships today (AGENTS §16.1): generic
 // recorder infrastructure, extracted the moment it could serve another test.
 
-import type { SSEError, SSEEvent, SSEParserInterface } from '@src/core'
-import { isSSEError } from '@src/core'
+import type { NDJSONParserInterface } from '@src/core'
 import { afterEach, vi } from 'vitest'
 
 afterEach(() => {
@@ -44,24 +43,30 @@ export function createRecorder<
 	}
 }
 
-// ── SSE line-terminator / whitespace constants (shared — AGENTS §16.1) ─────
+// ── NDJSON line-terminator / whitespace constants (shared — AGENTS §16.1) ──
 
 // Control bytes spelled as codepoints so the raw wire content is unambiguous
 // in source (a literal `'\r'` is identical, but the codepoint removes doubt).
 export const LF = String.fromCharCode(10)
 export const CR = String.fromCharCode(13)
 export const TAB = String.fromCharCode(9)
+export const FF = String.fromCharCode(12)
+export const VT = String.fromCharCode(11)
+export const BACKSLASH = String.fromCharCode(92)
 
-// ── SSEParser corpus-partitioning helpers (generic, environment-agnostic) ──
+// ── NDJSONParser corpus-partitioning helpers (generic, environment-agnostic) ─
 
 /**
  * Feed every chunk in `chunks` to `parser.parse(...)` in order and flatten the
- * dispatched events into a single array.
+ * decoded records into a single array.
  */
-export function feedAll(parser: SSEParserInterface, chunks: readonly string[]): SSEEvent[] {
-	const events: SSEEvent[] = []
-	for (const chunk of chunks) events.push(...parser.parse(chunk))
-	return events
+export function feedAll(
+	parser: NDJSONParserInterface,
+	chunks: readonly string[],
+): readonly Record<string, unknown>[] {
+	const records: Record<string, unknown>[] = []
+	for (const chunk of chunks) records.push(...parser.parse(chunk))
+	return records
 }
 
 /**
@@ -124,16 +129,6 @@ export function partition(stream: string, rng: () => number): readonly string[] 
 /** Repeat `block` `n` times, concatenated with no separator. */
 export function buildRepeated(block: string, n: number): string {
 	return block.repeat(n)
-}
-
-/**
- * Narrow a caught value to an {@link SSEError}, throwing (not `expect`ing) when
- * it is not one — lets a caller assert on `.code` / `.context` unconditionally
- * afterward instead of nesting `expect` inside an `if` (vitest/no-conditional-expect).
- */
-export function expectSSEError(value: unknown): SSEError {
-	if (!isSSEError(value)) throw new Error('expected value to be an SSEError')
-	return value
 }
 
 /**

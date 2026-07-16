@@ -1,22 +1,21 @@
 {
-	"name": "@orkestrel/sse",
+	"name": "@orkestrel/ndjson",
 	"version": "0.0.1",
-	"description": "A typed Server-Sent Events parser — incremental, spec-compliant parsing of event-stream chunks into typed events with data, event, id, and retry fields. Part of the @orkestrel line.",
+	"description": "A minimal streaming NDJSON parser — chunk-fed parsing of newline-delimited JSON text into records, with partial-line buffering across chunk boundaries and tolerance for malformed lines. Part of the @orkestrel line.",
 	"keywords": [
-		"event-stream",
-		"eventsource",
+		"json",
+		"ndjson",
+		"newline-delimited-json",
 		"parser",
-		"server-sent-events",
-		"sse",
 		"streaming",
 		"typescript"
 	],
-	"homepage": "https://github.com/orkestrel/sse#readme",
-	"bugs": "https://github.com/orkestrel/sse/issues",
+	"homepage": "https://github.com/orkestrel/ndjson#readme",
+	"bugs": "https://github.com/orkestrel/ndjson/issues",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/orkestrel/sse.git"
+		"url": "git+https://github.com/orkestrel/ndjson.git"
 	},
 	"files": [
 		"dist",
@@ -62,6 +61,9 @@
 		"build:src": "npm run build:src:core",
 		"build:src:core": "vite build --config configs/src/vite.core.config.ts && npm run copy dist/src/core/index.d.ts dist/src/core/index.d.cts",
 		"prepublishOnly": "npm run format:check && npm run lint:check && npm run check && npm run check:src && npm run build && npm test"
+	},
+	"dependencies": {
+		"@orkestrel/contract": "^0.0.1"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.58.10",

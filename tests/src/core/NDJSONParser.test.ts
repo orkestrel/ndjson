@@ -1,5 +1,17 @@
 import { NDJSONParser } from '@src/core'
 import { describe, expect, it } from 'vitest'
+import {
+	BACKSLASH,
+	CR,
+	FF,
+	LF,
+	TAB,
+	VT,
+	chunkings,
+	feedAll,
+	mulberry32,
+	partition,
+} from '../../setup.js'
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
@@ -238,17 +250,6 @@ describe('NDJSONParser — reset', () => {
 		expect(parser.parse('{"d":4}\n')).toEqual([{ d: 4 }])
 	})
 })
-
-// The control bytes below are built with `String.fromCharCode` so the raw wire
-// content is unambiguous in source: CR is U+000D, LF is U+000A, TAB U+0009, etc.
-// (a string literal `'\r'` is identical, but spelling the codepoint out removes
-// any doubt about exactly which byte the parser is being fed).
-const LF = String.fromCharCode(10)
-const CR = String.fromCharCode(13)
-const TAB = String.fromCharCode(9)
-const FF = String.fromCharCode(12)
-const VT = String.fromCharCode(11)
-const BACKSLASH = String.fromCharCode(92)
 
 describe('NDJSONParser — CRLF and carriage-return handling', () => {
 	// Windows-origin wires terminate lines with CRLF. The parser splits on `\n`
@@ -516,5 +517,120 @@ describe('NDJSONParser — buffer accumulation integrity over long streams', () 
 		expect(first).toEqual([])
 		expect(second).toEqual([])
 		expect(first).not.toBe(second)
+	})
+})
+
+describe('NDJSONParser — property / invariant suite (chunking invariance)', () => {
+	// A realistic Ollama-style multi-line NDJSON corpus — the fixed target for
+	// partition-invariance testing. Whatever chunking a wire delivers this stream
+	// under, the decoded records must come back identical: no loss, no
+	// duplication, no reordering.
+	const CORPUS =
+		'{"message":{"role":"assistant","content":"The"},"done":false}' +
+		LF +
+		'{"message":{"role":"assistant","content":" quick"},"done":false}' +
+		LF +
+		'{"message":{"role":"assistant","content":" brown"},"done":false}' +
+		LF +
+		'{"message":{"role":"assistant","content":" fox"},"done":false}' +
+		LF +
+		'not valid json at all' +
+		LF +
+		'{"message":{"role":"assistant","content":" jumps"},"done":false}' +
+		LF +
+		'{"message":{"role":"assistant","content":""},"done":true,"eval_count":5}' +
+		LF
+
+	const EXPECTED = new NDJSONParser().parse(CORPUS)
+
+	it('sanity: the corpus actually decodes records', () => {
+		expect(EXPECTED.length).toBe(5)
+	})
+
+	it('every fixed-size and two-way-split chunking of the corpus matches the whole-string parse', () => {
+		for (const chunks of chunkings(CORPUS)) {
+			const parser = new NDJSONParser()
+			expect(feedAll(parser, chunks)).toEqual(EXPECTED)
+		}
+	})
+
+	it('25 seeded-fuzz random partitions of the corpus all match the whole-string parse', () => {
+		const rng = mulberry32(0xc0ffee)
+
+		for (let trial = 0; trial < 25; trial += 1) {
+			const chunks = partition(CORPUS, rng)
+			const parser = new NDJSONParser()
+			expect(feedAll(parser, chunks)).toEqual(EXPECTED)
+		}
+	})
+
+	it('the exhaustive two-chunk split of a smaller corpus reassembles identically at every cut', () => {
+		const small = '{"a":1}' + LF + '{"b":2}' + LF + '{"c":3}' + LF
+		const expected = new NDJSONParser().parse(small)
+
+		for (let cut = 0; cut <= small.length; cut += 1) {
+			const parser = new NDJSONParser()
+			const records = feedAll(parser, [small.slice(0, cut), small.slice(cut)])
+			expect(records).toEqual(expected)
+		}
+	})
+
+	it('byte-at-a-time feeding of the corpus matches the whole-string parse', () => {
+		const parser = new NDJSONParser()
+		const records: Record<string, unknown>[] = []
+		for (const character of CORPUS) records.push(...parser.parse(character))
+
+		expect(records).toEqual(EXPECTED)
+	})
+})
+
+describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)', () => {
+	it('reassembles one very long single line (tens of KB) fed byte-at-a-time', () => {
+		const payload = 'x'.repeat(50_000)
+		const line = JSON.stringify({ payload }) + LF
+
+		const parser = new NDJSONParser()
+		const records: Record<string, unknown>[] = []
+		for (const character of line) records.push(...parser.parse(character))
+
+		expect(records).toHaveLength(1)
+		const [record] = records
+		expect(record).toEqual({ payload })
+	})
+
+	it('thousands of small records fed in varied chunk sizes: no loss, no duplication, no reorder', () => {
+		const count = 3000
+		let stream = ''
+		for (let index = 0; index < count; index += 1) stream += JSON.stringify({ index }) + LF
+
+		for (const size of [1, 4, 17, 64, 512]) {
+			const parser = new NDJSONParser()
+			const records: Record<string, unknown>[] = []
+			for (let position = 0; position < stream.length; position += size) {
+				records.push(...parser.parse(stream.slice(position, position + size)))
+			}
+
+			expect(records).toHaveLength(count)
+			expect(records.every((record, index) => record['index'] === index)).toBe(true)
+		}
+	})
+
+	it('interleaved malformed lines within a large volume do not derail subsequent valid records', () => {
+		const count = 1000
+		let stream = ''
+		for (let index = 0; index < count; index += 1) {
+			stream += JSON.stringify({ index }) + LF
+			if (index % 7 === 0) stream += 'not json ' + String(index) + LF
+			if (index % 11 === 0) stream += '[' + String(index) + ']' + LF
+		}
+
+		const parser = new NDJSONParser()
+		const records: Record<string, unknown>[] = []
+		for (let position = 0; position < stream.length; position += 3) {
+			records.push(...parser.parse(stream.slice(position, position + 3)))
+		}
+
+		expect(records).toHaveLength(count)
+		expect(records.every((record, index) => record['index'] === index)).toBe(true)
 	})
 })
