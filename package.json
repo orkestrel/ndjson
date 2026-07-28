@@ -1,7 +1,7 @@
 {
 	"name": "@orkestrel/ndjson",
 	"version": "0.0.4",
-	"description": "A minimal streaming NDJSON parser \u2014 chunk-fed parsing of newline-delimited JSON text into records, with partial-line buffering across chunk boundaries and tolerance for malformed lines. Part of the @orkestrel line.",
+	"description": "A minimal streaming NDJSON parser — chunk-fed parsing of newline-delimited JSON text into records, with partial-line buffering across chunk boundaries and tolerance for malformed lines. Part of the @orkestrel line.",
 	"keywords": [
 		"json",
 		"ndjson",
