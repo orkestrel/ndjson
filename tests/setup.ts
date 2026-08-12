@@ -34,8 +34,8 @@ export const BACKSLASH = String.fromCharCode(92)
 export function feedAll(
 	parser: NDJSONParserInterface,
 	chunks: readonly string[],
-): readonly Record<string, unknown>[] {
-	const records: Record<string, unknown>[] = []
+): ReadonlyArray<Record<string, unknown>> {
+	const records: Array<Record<string, unknown>> = []
 	for (const chunk of chunks) records.push(...parser.parse(chunk))
 	return records
 }
@@ -49,7 +49,7 @@ export function feedAll(
 export function chunkings(
 	stream: string,
 	sizes: readonly number[] = [1, 2, 3, 5, 7, 13, stream.length],
-): readonly (readonly string[])[] {
+): ReadonlyArray<readonly string[]> {
 	const result: string[][] = []
 	for (const size of sizes) {
 		const chunks: string[] = []

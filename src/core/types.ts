@@ -9,7 +9,7 @@ export interface NDJSONParserInterface {
 	 * record (malformed / non-object lines are skipped); a trailing partial line
 	 * is retained for the next call.
 	 */
-	parse(chunk: string): readonly Record<string, unknown>[]
+	parse(chunk: string): ReadonlyArray<Record<string, unknown>>
 	/** Drop any buffered partial line - reset for a fresh stream. */
 	reset(): void
 }

@@ -28,10 +28,10 @@ import { isRecord, parseJSONAs } from '@orkestrel/contract'
 export class NDJSONParser implements NDJSONParserInterface {
 	#buffer = ''
 
-	parse(chunk: string): readonly Record<string, unknown>[] {
+	parse(chunk: string): ReadonlyArray<Record<string, unknown>> {
 		this.#buffer += chunk
 		const lines = this.#buffer.split('\n')
-		const records: Record<string, unknown>[] = []
+		const records: Array<Record<string, unknown>> = []
 		for (let index = 0; index < lines.length - 1; index += 1) {
 			const line = lines[index]?.trim()
 			if (line !== undefined && line.length > 0) {
