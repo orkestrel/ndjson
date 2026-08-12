@@ -1,6 +1,6 @@
 {
 	"name": "@orkestrel/ndjson",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "A minimal streaming NDJSON parser — chunk-fed parsing of newline-delimited JSON text into records, with partial-line buffering across chunk boundaries and tolerance for malformed lines. Part of the @orkestrel line.",
 	"keywords": [
 		"json",
@@ -64,7 +64,7 @@
 		"prepublishOnly": "npm run format:check && npm run lint:check && npm run check && npm run build && npm test"
 	},
 	"dependencies": {
-		"@orkestrel/contract": "^0.0.10"
+		"@orkestrel/contract": "^0.0.11"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.58.12",
