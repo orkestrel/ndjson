@@ -70,7 +70,7 @@
 		"prepack": "npm run build"
 	},
 	"dependencies": {
-		"@orkestrel/contract": "^0.0.13"
+		"@orkestrel/contract": "^0.0.15"
 	},
 	"devDependencies": {
 		"@microsoft/api-extractor": "^7.59.0",
