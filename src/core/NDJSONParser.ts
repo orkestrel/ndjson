@@ -35,7 +35,7 @@ export class NDJSONParser implements NDJSONParserInterface {
 		for (let index = 0; index < lines.length - 1; index += 1) {
 			const line = lines[index]?.trim()
 			if (line !== undefined && line.length > 0) {
-				const record = this.#line(line)
+				const record = parseJSONAs(line, isRecord)
 				if (record !== undefined) records.push(record)
 			}
 		}
@@ -45,9 +45,5 @@ export class NDJSONParser implements NDJSONParserInterface {
 
 	reset(): void {
 		this.#buffer = ''
-	}
-
-	#line(line: string): Record<string, unknown> | undefined {
-		return parseJSONAs(line, isRecord)
 	}
 }
