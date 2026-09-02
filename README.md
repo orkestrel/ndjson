@@ -47,7 +47,7 @@ handles partial characters, this parser handles partial lines.
 
 For the full surface — the `NDJSONParser` class, its behavior, and the
 `createNDJSONParser` factory — see
-[`guides/ndjson.md`](guides/src/ndjson.md).
+[`guides/ndjson.md`](guides/ndjson.md).
 
 ## Package
 
