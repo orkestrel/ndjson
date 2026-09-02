@@ -207,13 +207,13 @@ describe('NDJSONParser — never-terminated line', () => {
 	})
 })
 
-describe('NDJSONParser — reset', () => {
+describe('NDJSONParser — clear', () => {
 	it('discards a buffered partial line so a later parse starts fresh', () => {
 		const parser = new NDJSONParser()
 
-		// Buffer a partial line, then reset before it completes.
+		// Buffer a partial line, then clear before it completes.
 		expect(parser.parse('{"a":1,"b')).toEqual([])
-		parser.reset()
+		parser.clear()
 
 		// The old fragment is gone — the previously-completing tail is now its own
 		// (malformed) line and is dropped, while a fresh valid line parses normally.
@@ -223,20 +223,20 @@ describe('NDJSONParser — reset', () => {
 	it('is a safe no-op with an empty buffer', () => {
 		const parser = new NDJSONParser()
 
-		parser.reset()
-		parser.reset()
+		parser.clear()
+		parser.clear()
 
 		expect(parser.parse('{"a":1}\n')).toEqual([{ a: 1 }])
 	})
 
-	it('keeps parsing normally across many reset calls (interleaved with parse)', () => {
+	it('keeps parsing normally across many clear calls (interleaved with parse)', () => {
 		const parser = new NDJSONParser()
 
 		expect(parser.parse('{"a":1}\n{"b"')).toEqual([{ a: 1 }])
-		parser.reset() // drop the buffered `{"b"`
+		parser.clear() // drop the buffered `{"b"`
 		expect(parser.parse('{"c":3}\n')).toEqual([{ c: 3 }])
-		parser.reset()
-		parser.reset() // back-to-back resets stay harmless
+		parser.clear()
+		parser.clear() // back-to-back clears stay harmless
 		expect(parser.parse('{"d":4}\n')).toEqual([{ d: 4 }])
 	})
 })
@@ -607,13 +607,14 @@ describe('NDJSONParser — unicode chunk-boundary splits (astral / combining mar
 })
 
 describe('NDJSONParser — never-throws on adversarial nesting depth', () => {
-	// `#line` wraps `JSON.parse` in a `try`/`catch` specifically so pathological
-	// input (a stack-exhausting depth) is swallowed like any other malformed
-	// line, never fatal. Whether the RUNNING engine's `JSON.parse` actually
-	// throws a stack `RangeError` at this depth or parses it without limit is
-	// engine-dependent (the parser's contract holds either way) — the pin here
-	// is that `parse()` itself never throws, and the parser is not derailed for
-	// whatever comes next.
+	// `parse()` decodes each line with `parseJSONAs` from `@orkestrel/contract`,
+	// which catches whatever `JSON.parse` throws and returns `undefined` — so a
+	// pathological input (a stack-exhausting depth) is swallowed like any other
+	// malformed line, never fatal. Whether the RUNNING engine's `JSON.parse`
+	// actually throws a stack `RangeError` at this depth or parses it without
+	// limit is engine-dependent (the parser's contract holds either way) — the
+	// pin here is that `parse()` itself never throws, and the parser is not
+	// derailed for whatever comes next.
 	it('never throws on an extremely deeply nested single line, and a following line still parses', () => {
 		const depth = 100_000
 		const line = '{"a":'.repeat(depth) + '1' + '}'.repeat(depth) + LF

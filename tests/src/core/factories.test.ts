@@ -20,11 +20,11 @@ describe('createNDJSONParser', () => {
 		expect(parser.parse('":2}\n')).toEqual([{ a: 1, b: 2 }])
 	})
 
-	it('clears buffered state on reset', () => {
+	it('drops buffered state on clear', () => {
 		const parser = createNDJSONParser()
 
 		expect(parser.parse('{"a":1,"b')).toEqual([])
-		parser.reset()
+		parser.clear()
 
 		expect(parser.parse('":2}\n{"fresh":true}\n')).toEqual([{ fresh: true }])
 	})

@@ -6,7 +6,7 @@ record, and a partial line split across a chunk boundary is buffered until
 the rest arrives. A total function — it never throws: a malformed line and a
 blank line are silently skipped, and a well-formed but non-object JSON value
 (a string, number, array, `null`) is dropped, so `parse()` only ever returns
-plain records. `reset()` drops any buffered partial line so the same parser
+plain records. `clear()` drops any buffered partial line so the same parser
 instance can be reused for a fresh stream.
 
 ## Install
@@ -36,7 +36,7 @@ parser.parse('\n') // [{ c: 3 }]
 
 parser.parse('not json\n\n{"d":4}\n') // [{ d: 4 }] - malformed and blank lines skipped
 
-parser.reset() // drop buffered partial line - reuse for a fresh stream
+parser.clear() // drop buffered partial line - reuse for a fresh stream
 ```
 
 Pair it with a `TextDecoder({ stream: true })` when reading a byte stream so

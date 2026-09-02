@@ -14,9 +14,10 @@ export interface NDJSONParserInterface {
 	 */
 	parse(chunk: string): ReadonlyArray<Record<string, unknown>>
 	/**
-	 * Drop any buffered partial line - reset for a fresh stream.
+	 * Drops any buffered partial line, leaving the handle ready for a fresh
+	 * stream.
 	 *
 	 * @returns Nothing
 	 */
-	reset(): void
+	clear(): void
 }

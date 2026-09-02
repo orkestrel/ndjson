@@ -22,7 +22,7 @@ import { isRecord, parseJSONAs } from '@orkestrel/contract'
  * const parser = new NDJSONParser()
  * parser.parse('{"a":1}\n{"b"') // [{ a: 1 }] - the second line is still partial
  * parser.parse(':2}\n') // [{ b: 2 }] - the split line reassembled
- * parser.reset() // drop any buffered partial - ready for a fresh stream
+ * parser.clear() // drop any buffered partial - ready for a fresh stream
  * ```
  */
 export class NDJSONParser implements NDJSONParserInterface {
@@ -43,7 +43,7 @@ export class NDJSONParser implements NDJSONParserInterface {
 		return records
 	}
 
-	reset(): void {
+	clear(): void {
 		this.#buffer = ''
 	}
 }
