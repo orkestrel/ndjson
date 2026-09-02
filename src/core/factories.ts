@@ -2,7 +2,7 @@ import type { NDJSONParserInterface } from './types.js'
 import { NDJSONParser } from './NDJSONParser.js'
 
 /**
- * Create an NDJSON (newline-delimited JSON) stream parser - a stateful handle
+ * Creates an NDJSON (newline-delimited JSON) stream parser - a stateful handle
  * that turns string chunks into the complete JSON objects decoded so far.
  *
  * @returns A working {@link NDJSONParserInterface}

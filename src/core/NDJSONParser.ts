@@ -2,8 +2,8 @@ import type { NDJSONParserInterface } from './types.js'
 import { isRecord, parseJSONAs } from '@orkestrel/contract'
 
 /**
- * A stateful NDJSON (newline-delimited JSON) stream parser — feed it string
- * chunks, get back the complete JSON objects decoded so far.
+ * Decodes an NDJSON (newline-delimited JSON) stream statefully — feed the handle
+ * string chunks, get back the complete JSON objects decoded so far.
  *
  * @remarks
  * - **Partial-line buffering.** `parse(chunk)` appends `chunk` to an internal
