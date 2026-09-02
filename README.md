@@ -17,7 +17,7 @@ npm install @orkestrel/ndjson
 
 ## Requirements
 
-- Node.js >= 24
+- Node.js >= 22.12
 - ESM + CJS (dual-format build)
 - One runtime dependency: `@orkestrel/contract`
 - A never-terminated line is buffered indefinitely by design — there is no
@@ -47,7 +47,7 @@ handles partial characters, this parser handles partial lines.
 
 For the full surface — the `NDJSONParser` class, its behavior, and the
 `createNDJSONParser` factory — see
-[`guides/src/ndjson.md`](guides/src/ndjson.md).
+[`guides/ndjson.md`](guides/src/ndjson.md).
 
 ## Package
 
