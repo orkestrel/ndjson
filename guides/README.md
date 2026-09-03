@@ -1,6 +1,6 @@
 # Guides
 
-A dual-axis index into this repository's guides — by concept, and by directory (AGENTS §22).
+A dual-axis index into this repository's guides — by concept, and by directory.
 
 ## By concept
 
@@ -16,8 +16,7 @@ A dual-axis index into this repository's guides — by concept, and by directory
 
 ## Dependency reference
 
-`@orkestrel/ndjson` has one `@orkestrel/*` runtime dependency:
-`@orkestrel/contract`.
+`@orkestrel/contract` is this package's sole `@orkestrel/*` runtime dependency.
 
 [`contract.md`](contract.md) is a byte-identical mirror of the guide
 for `@orkestrel/contract` — the runtime dependency this package's guards /
@@ -35,4 +34,4 @@ this guide set.
 
 ## See also
 
-- [`AGENTS.md`](../AGENTS.md) — the rules; §22 documentation-as-contracts.
+- [`AGENTS.md`](../AGENTS.md) — the rules.

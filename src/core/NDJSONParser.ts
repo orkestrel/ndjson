@@ -3,16 +3,16 @@ import { isRecord, parseJSONAs } from '@orkestrel/contract'
 
 /**
  * Decodes an NDJSON (newline-delimited JSON) stream statefully — feed the handle
- * string chunks, get back the complete JSON objects decoded so far.
+ * string chunks, get back the complete records decoded so far.
  *
  * @remarks
  * - **Partial-line buffering.** `parse(chunk)` appends `chunk` to an internal
  *   buffer, splits on `\n`, and emits every line BEFORE the last one (each one is
  *   `\n`-terminated, so it is complete); the final segment is the trailing partial
  *   line and is retained for the next call.
- * - **Records only, malformed-safe.** Each complete line is parsed via
+ * - **Records only, malformed-safe.** Each complete line is parsed through
  *   `parseJSONAs(line, isRecord)`: a malformed line is silently skipped (never
- *   throws), and a non-object value is dropped — only plain records pass
+ *   throws), and a non-record value is dropped — only plain records pass
  *   {@link isRecord}.
  *
  * @example

@@ -3,11 +3,11 @@
 A minimal streaming NDJSON (newline-delimited JSON) parser — feed it string
 chunks as they arrive; each complete `\n`-terminated line is decoded to a
 record, and a partial line split across a chunk boundary is buffered until
-the rest arrives. A total function — it never throws: a malformed line and a
-blank line are silently skipped, and a well-formed but non-object JSON value
-(a string, number, array, `null`) is dropped, so `parse()` only ever returns
-plain records. `clear()` drops any buffered partial line so the same parser
-instance can be reused for a fresh stream.
+the rest arrives. `parse` never throws on malformed or blank input: a
+malformed line and a blank line are silently skipped, and a well-formed but
+non-object JSON value (a string, number, array, `null`) is dropped, so
+`parse()` only ever returns plain records. `clear()` drops any buffered
+partial line so the same parser instance can be reused for a fresh stream.
 
 ## Install
 
@@ -19,10 +19,10 @@ npm install @orkestrel/ndjson
 
 - Node.js >= 22.12
 - ESM + CJS (dual-format build)
-- One runtime dependency: `@orkestrel/contract`
-- A never-terminated line is buffered indefinitely by design — there is no
-  size limit, so callers fronting an untrusted or unbounded upstream should
-  enforce their own byte cap before feeding chunks in.
+- Runtime dependency: `@orkestrel/contract`
+- A never-terminated line stays in the buffer until its newline arrives —
+  there is no size limit, so when you front an untrusted or unbounded
+  upstream, enforce your own byte cap before feeding chunks in.
 
 ## Usage
 

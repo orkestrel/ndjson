@@ -13,18 +13,7 @@
 import { NDJSONParser } from '@src/core'
 import { seededRandom } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
-import {
-	BACKSLASH,
-	chunkings,
-	CR,
-	feedAll,
-	FF,
-	isBrowserVuePath,
-	LF,
-	partition,
-	TAB,
-	VT,
-} from './setup.js'
+import { BACKSLASH, chunkings, CR, feedAll, FF, LF, partition, TAB, VT } from './setup.js'
 
 // A short Ollama-shaped corpus: two well-formed records around one malformed line, so
 // a chunking that loses, duplicates, or reorders a chunk changes the decoded result.
@@ -149,23 +138,5 @@ describe('partition', () => {
 
 	it('returns no chunks for an empty stream', () => {
 		expect(partition('', () => 0)).toEqual([])
-	})
-})
-
-describe('isBrowserVuePath', () => {
-	// The workspace's guard for the private browser SFC population. This package is
-	// core-only and ships no `app/`, so what the proof pins is the guard's boundary.
-	it('accepts a browser SFC path under either separator family', () => {
-		const windows = 'app' + BACKSLASH + 'browser' + BACKSLASH + 'views' + BACKSLASH + 'Home.vue'
-
-		expect(isBrowserVuePath('app/browser/views/Home.vue')).toBe(true)
-		expect(isBrowserVuePath(windows)).toBe(true)
-	})
-
-	it('refuses a sibling directory and a prefix lookalike', () => {
-		expect(isBrowserVuePath('app/core/views/Home.vue')).toBe(false)
-		expect(isBrowserVuePath('src/browser/views/Home.vue')).toBe(false)
-		expect(isBrowserVuePath('app/browserish/Home.vue')).toBe(false)
-		expect(isBrowserVuePath('tests/app/browser/Home.vue')).toBe(false)
 	})
 })

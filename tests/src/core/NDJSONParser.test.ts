@@ -6,9 +6,9 @@ import { BACKSLASH, CR, FF, LF, TAB, VT, chunkings, feedAll, partition } from '.
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
 // record, and retain the trailing partial line for the next call. Records only
-// (malformed / non-object lines skipped, never throwing); a never-terminated line
+// (malformed / non-record lines skipped, never throwing); a never-terminated line
 // stays buffered forever. Driven entirely with plain strings — no network, no
-// provider, no fakes (AGENTS §16).
+// provider, no fakes.
 
 describe('NDJSONParser — complete lines', () => {
 	it('parses a single complete line to one record', () => {
@@ -132,21 +132,21 @@ describe('NDJSONParser — Ollama-style stream at arbitrary chunk boundaries', (
 	})
 })
 
-describe('NDJSONParser — malformed and non-object lines', () => {
+describe('NDJSONParser — malformed and non-record lines', () => {
 	it('skips a malformed JSON line without throwing, later valid lines still parse', () => {
 		const parser = new NDJSONParser()
 
 		expect(parser.parse('{"a":1}\nnot json at all\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }])
 	})
 
-	it('drops a non-object line and keeps the records around it', () => {
+	it('drops a non-record line and keeps the records around it', () => {
 		const parser = new NDJSONParser()
 
 		// 42 / "str" / [1,2] / null / true are valid JSON but not records — dropped.
 		expect(parser.parse('42\n"str"\n[1,2]\nnull\ntrue\n{"ok":true}\n')).toEqual([{ ok: true }])
 	})
 
-	it('drops every non-object value when no record is present', () => {
+	it('drops every non-record value when no record is present', () => {
 		const parser = new NDJSONParser()
 
 		expect(parser.parse('1\n2\n[]\nnull\n')).toEqual([])
@@ -387,7 +387,7 @@ describe('NDJSONParser — value shapes and JSON semantics', () => {
 		expect(parser.parse('{}' + LF)).toEqual([{}])
 	})
 
-	it('drops an empty-array line (a non-object value)', () => {
+	it('drops an empty-array line (a non-record value)', () => {
 		const parser = new NDJSONParser()
 
 		expect(parser.parse('[]' + LF + '{"ok":1}' + LF)).toEqual([{ ok: 1 }])
@@ -453,7 +453,7 @@ describe('NDJSONParser — value shapes and JSON semantics', () => {
 describe('NDJSONParser — buffer accumulation integrity over long streams', () => {
 	// Build a stream of `count` records, feed it to a fresh parser one byte at a
 	// time, and collect everything. Pins: no record lost, none duplicated, exact
-	// stream order — i.e. the append-split-retain buffering has no off-by-one or
+	// stream order — that is, the append-split-retain buffering has no off-by-one or
 	// quadratic corruption no matter how granular the chunking.
 	const drainByByte = (count: number): ReadonlyArray<Record<string, unknown>> => {
 		const parser = new NDJSONParser()
@@ -533,7 +533,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 
 	const EXPECTED = new NDJSONParser().parse(CORPUS)
 
-	it('sanity: the corpus actually decodes records', () => {
+	it('quick check: the corpus decodes records, so a chunking has something to lose', () => {
 		expect(EXPECTED.length).toBe(6)
 	})
 

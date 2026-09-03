@@ -2,7 +2,7 @@
 // Vitest project (`setupFiles[0]`). Keep this file free of `node:*` and of
 // `document` / `window`: this package is core-only.
 //
-// Scoped to the `ndjson` corpus this workspace ships today (AGENTS §16.1): NDJSON
+// Scoped to the `ndjson` corpus this workspace ships today: NDJSON
 // line-terminator constants and corpus-partitioning helpers for chunk-boundary
 // invariance testing. Seeded-fuzz partitioning uses @orkestrel/contract's
 // `seededRandom` directly — no local PRNG.
@@ -14,7 +14,7 @@ afterEach(() => {
 	vi.restoreAllMocks()
 })
 
-// ── NDJSON line-terminator / whitespace constants (shared — AGENTS §16.1) ──
+// ── NDJSON line-terminator / whitespace constants (shared) ──
 
 // Control bytes spelled as codepoints so the raw wire content is unambiguous
 // in source (a literal `'\r'` is identical, but the codepoint removes doubt).
@@ -67,8 +67,8 @@ export function chunkings(
 
 /**
  * Split `stream` into a random sequence of non-empty chunks driven by `rng`
- * (e.g. `seededRandom` from `@orkestrel/contract`) — every call consumes at
- * least one character, so it always terminates.
+ * (for example the `seededRandom` function from `@orkestrel/contract`) — every
+ * call consumes at least one character, so it always terminates.
  */
 export function partition(stream: string, rng: () => number): readonly string[] {
 	const chunks: string[] = []
@@ -80,10 +80,4 @@ export function partition(stream: string, rng: () => number): readonly string[] 
 		index += size
 	}
 	return chunks
-}
-
-/** Whether a repository-relative Vue SFC path belongs to the private browser application. */
-export function isBrowserVuePath(path: string): boolean {
-	const normalized = path.replaceAll('\\', '/')
-	return normalized.startsWith('app/browser/')
 }
