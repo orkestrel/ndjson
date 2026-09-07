@@ -1,13 +1,12 @@
 # @orkestrel/ndjson
 
-A minimal streaming NDJSON (newline-delimited JSON) parser — feed it string
-chunks as they arrive; each complete `\n`-terminated line is decoded to a
-record, and a partial line split across a chunk boundary is buffered until
-the rest arrives. `parse` never throws on malformed or blank input: a
-malformed line and a blank line are silently skipped, and a well-formed but
-non-object JSON value (a string, number, array, `null`) is dropped, so
-`parse()` only ever returns plain records. `clear()` drops any buffered
-partial line so the same parser instance can be reused for a fresh stream.
+> A stateful newline-delimited-JSON (NDJSON) stream parser: a self-contained handle
+> that turns string chunks into the complete records decoded so far, and never throws
+> on a malformed, blank, or non-record line.
+
+Create a parser with the `createNDJSONParser` function, feed it each chunk as it
+arrives, and read the records that call returns; call `clear()` to reuse the same
+handle for a fresh stream. Part of the `@orkestrel` line.
 
 ## Install
 

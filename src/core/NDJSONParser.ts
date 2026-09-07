@@ -2,17 +2,18 @@ import type { NDJSONParserInterface } from './types.js'
 import { isRecord, parseJSONAs } from '@orkestrel/contract'
 
 /**
- * Decodes an NDJSON (newline-delimited JSON) stream statefully — feed the handle
- * string chunks, get back the complete records decoded so far.
+ * Decodes an NDJSON (newline-delimited JSON) stream statefully, implementing
+ * `NDJSONParserInterface` over a private buffer the instance owns — each `parse` call
+ * returns the records completed so far and reassembles a record split across chunk
+ * boundaries.
  *
  * @remarks
- * - **Partial-line buffering.** `parse(chunk)` appends `chunk` to an internal
- *   buffer, splits on `\n`, and emits every line BEFORE the last one (each one is
- *   `\n`-terminated, so it is complete); the final segment is the trailing partial
- *   line and is retained for the next call.
+ * - **Partial-line buffering.** `parse(chunk)` appends `chunk` to the buffer, splits
+ *   on `\n`, and emits every line before the last one, each of them `\n`-terminated
+ *   and so complete; the final segment is the trailing partial line.
  * - **Records only, malformed-safe.** Each complete line is parsed through
- *   `parseJSONAs(line, isRecord)`: a malformed line is silently skipped (never
- *   throws), and a non-record value is dropped — only plain records pass
+ *   `parseJSONAs(line, isRecord)`: a malformed line is silently skipped rather than
+ *   thrown, and a non-record value is dropped — only plain records pass
  *   {@link isRecord}.
  *
  * @example
