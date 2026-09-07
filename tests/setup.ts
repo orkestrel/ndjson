@@ -28,8 +28,8 @@ export const BACKSLASH = String.fromCharCode(92)
 // ── NDJSONParser corpus-partitioning helpers (generic, environment-agnostic) ─
 
 /**
- * Feed every chunk in `chunks` to `parser.parse(...)` in order and flatten the
- * decoded records into a single array.
+ * Feeds every chunk in `chunks` to `parser.parse(...)` in order and flattens
+ * the decoded records into a single array.
  */
 export function feedAll(
 	parser: NDJSONParserInterface,
@@ -41,10 +41,11 @@ export function feedAll(
 }
 
 /**
- * Partition `stream` into a fixed set of chunkings for partition-invariance
- * testing: one chunking per fixed size in `sizes` (default `{1,2,3,5,7,13,len}`)
- * plus every two-way single-cut split (`stream.slice(0, cut)` /
- * `stream.slice(cut)` for every `cut` from `0` to `stream.length`).
+ * Builds a fixed set of partitions of `stream` for partition-invariance
+ * testing: one partition per fixed size in `sizes` (default
+ * `{1,2,3,5,7,13,len}`) plus every two-way single-cut split
+ * (`stream.slice(0, cut)` / `stream.slice(cut)` for every `cut` from `0` to
+ * `stream.length`).
  */
 export function chunkings(
 	stream: string,
@@ -66,7 +67,7 @@ export function chunkings(
 }
 
 /**
- * Split `stream` into a random sequence of non-empty chunks driven by `rng`
+ * Splits `stream` into a random sequence of non-empty chunks driven by `rng`
  * (for example the `seededRandom` function from `@orkestrel/contract`) — every
  * call consumes at least one character, so it always terminates.
  */

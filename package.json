@@ -1,6 +1,6 @@
 {
 	"name": "@orkestrel/ndjson",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"description": "A minimal streaming NDJSON parser — chunk-fed parsing of newline-delimited JSON text into records, with partial-line buffering across chunk boundaries and tolerance for malformed lines. Part of the @orkestrel line.",
 	"keywords": [
 		"json",
@@ -67,7 +67,8 @@
 		"test:distribution": "vitest run --config vite.config.ts --no-cache --reporter=dot --project distribution",
 		"test:probe": "vitest run --config vite.config.ts --no-cache --reporter=verbose --project probe",
 		"test:bench": "vitest bench --config vite.config.ts --no-cache --project probe",
-		"prepack": "npm run build"
+		"prepack": "npm run build",
+		"docs": "node --experimental-strip-types scripts/docs.ts"
 	},
 	"dependencies": {
 		"@orkestrel/contract": "^0.0.16"

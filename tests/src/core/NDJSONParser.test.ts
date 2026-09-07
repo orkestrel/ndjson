@@ -494,7 +494,7 @@ describe('NDJSONParser — buffer accumulation integrity over long streams', () 
 		const second = parser.parse('{"b":2}' + LF)
 
 		expect(first).not.toBe(second)
-		expect(first).toEqual([{ a: 1 }]) // still just its own record
+		expect(first).toEqual([{ a: 1 }]) // still its own record
 		expect(second).toEqual([{ b: 2 }])
 	})
 
