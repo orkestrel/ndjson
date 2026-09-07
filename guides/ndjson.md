@@ -60,11 +60,15 @@ function feed(parser: NDJSONParserInterface, chunk: string): readonly Record<str
 | -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `createNDJSONParser` | function | Creates an NDJSON (newline-delimited JSON) stream parser and returns it as an `NDJSONParserInterface` — a fresh `NDJSONParser` holding the buffer, so a caller holds the published contract rather than the class. |
 
+#### Create a parser
+
 ```ts
 import { createNDJSONParser } from '@orkestrel/ndjson'
 
 const parser = createNDJSONParser()
 parser.parse('{"a":1}\n{"b":2}\n') // [{ a: 1 }, { b: 2 }]
+parser.parse('{"c":3}') // [] — buffered until its trailing newline arrives
+parser.parse('\n') // [{ c: 3 }]
 ```
 
 ### Classes
@@ -85,6 +89,9 @@ surface.
 | `parse` | `readonly Record<string, unknown>[]` | Appends `chunk` to the buffer and returns every complete `\n`-terminated line parsed to a record, skipping a malformed or non-record line; the trailing partial line is retained for the next call, so a line split across a chunk boundary is reassembled when its closing `\n` arrives. |
 | `clear` | `void`                               | Drops any buffered partial line, leaving the handle ready for a fresh stream.                                                                                                                                                                                                             |
 
+`parse` holds an unterminated line indefinitely and the buffer has no size
+limit, so a caller fronting an untrusted upstream enforces its own byte cap.
+
 ```ts
 import { NDJSONParser } from '@orkestrel/ndjson'
 
@@ -94,3 +101,15 @@ parser.parse(':2}\n') // [{ b: 2 }] - the split line reassembled
 parser.clear() // drop any buffered partial - ready for a fresh stream
 parser.parse('{"c":3}\n') // [{ c: 3 }]
 ```
+
+## Tests
+
+- [`tests/guides.test.ts`](../tests/guides.test.ts) — the `## Surface` ↔ `src/core` bijection (value and type exports), the `NDJSONParserInterface` ↔ `NDJSONParser` method bijection, and the equality gate: every `Summary` cell against its declaration's description paragraph, the titled `Create a parser` fence against the `@example` block of that title (pinned so the titled pair cannot be retired silently), and the README pitch against this guide's tagline. It also runs the flagship fences and asserts the values their comments claim.
+- [`tests/src/core/NDJSONParser.test.ts`](../tests/src/core/NDJSONParser.test.ts) — that `parse` returns the same records however a stream is cut into chunks, skipping malformed, blank, and non-record lines, withholding a line the stream never terminates, and never throwing on any input.
+- [`tests/policy.test.ts`](../tests/policy.test.ts) — repository coding law: source placement, exports, readonly contracts, syntax, and the prose this guide is written in.
+- [`tests/config.test.ts`](../tests/config.test.ts) — the root configuration's aliases and projects, the policy Oxlint plugin's rules against its rule tester, and the configuration helpers.
+
+## See also
+
+- [`AGENTS.md`](../AGENTS.md) — the pointer to the `@orkestrel/scaffold` coding contract this package is written to.
+- [`README.md`](README.md) — the guides index.

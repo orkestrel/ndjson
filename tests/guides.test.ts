@@ -39,7 +39,7 @@ const MODULES = Object.freeze({ '@orkestrel/ndjson': 'src/core', '@src/core': 's
  *
  * A class that one-class-per-file evicted from its single consumer cannot become a
  * local, so it stays exported without being public. Naming it here is what makes that
- * intentional rather than forgotten — and the second assertion below fails when a name
+ * intentional rather than forgotten — and the assertion that follows it fails when a name
  * here stops being stranded, so the list cannot rot.
  */
 const INTERNAL: readonly string[] = Object.freeze([])
@@ -211,20 +211,20 @@ for (const entry of manifest) {
 
 		for (const group of guide.methods()) {
 			const entity = group.interface.replace(/Interface$/, '')
+			const documented = group.methods.map((method) => method.name)
+			const examples =
+				entity === group.interface
+					? source.examples(group.interface).map((example) => example.name)
+					: source
+							.examples(group.interface)
+							.map((example) => example.name)
+							.concat(source.examples(entity).map((example) => example.name))
 			describe(`${group.interface} examples`, () => {
 				it('documents an example for every method', () => {
 					const fences = guide
 						.fences()
 						.filter((fence) => fence.language === EXAMPLE_LANGUAGE)
 						.map((fence) => fence.code)
-					const documented = group.methods.map((method) => method.name)
-					const examples =
-						entity === group.interface
-							? source.examples(group.interface).map((example) => example.name)
-							: source
-									.examples(group.interface)
-									.concat(source.examples(entity))
-									.map((example) => example.name)
 					expect(findUnexampled(documented, fences, examples)).toEqual([])
 				})
 			})
@@ -309,13 +309,17 @@ describe('flagship fences', () => {
 		)
 	})
 
-	it('returns the Factories fence values from one chunk carrying two lines', () => {
-		expect(createNDJSONParser().parse('{"a":1}\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }])
+	it('returns the Factories fence values, holding the unterminated line for its newline', () => {
+		const parser = createNDJSONParser()
+
+		expect(parser.parse('{"a":1}\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }])
+		expect(parser.parse('{"c":3}')).toEqual([])
+		expect(parser.parse('\n')).toEqual([{ c: 3 }])
 	})
 
 	it('carries the Factories fence lines the transcription copies', () => {
 		expect(guideText).toContain(
-			'const parser = createNDJSONParser()\nparser.parse(\'{"a":1}\\n{"b":2}\\n\') // [{ a: 1 }, { b: 2 }]',
+			'const parser = createNDJSONParser()\nparser.parse(\'{"a":1}\\n{"b":2}\\n\') // [{ a: 1 }, { b: 2 }]\nparser.parse(\'{"c":3}\') // [] — buffered until its trailing newline arrives\nparser.parse(\'\\n\') // [{ c: 3 }]',
 		)
 	})
 

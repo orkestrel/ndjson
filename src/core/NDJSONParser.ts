@@ -3,9 +3,9 @@ import { isRecord, parseJSONAs } from '@orkestrel/contract'
 
 /**
  * Decodes an NDJSON (newline-delimited JSON) stream statefully, implementing
- * `NDJSONParserInterface` over a private buffer the instance owns — each `parse` call
- * returns the records completed so far and reassembles a record split across chunk
- * boundaries.
+ * {@link NDJSONParserInterface} over a private buffer the instance owns — each `parse`
+ * call returns the records completed so far and reassembles a record split across
+ * chunk boundaries.
  *
  * @remarks
  * - **Partial-line buffering.** `parse(chunk)` appends `chunk` to the buffer, splits

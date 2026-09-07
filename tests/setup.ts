@@ -41,8 +41,8 @@ export function feedAll(
 }
 
 /**
- * Builds a fixed set of partitions of `stream` for partition-invariance
- * testing: one partition per fixed size in `sizes` (default
+ * Splits `stream` into a fixed set of chunk sequences for chunking-invariance
+ * testing: one sequence per fixed size in `sizes` (default
  * `{1,2,3,5,7,13,len}`) plus every two-way single-cut split
  * (`stream.slice(0, cut)` / `stream.slice(cut)` for every `cut` from `0` to
  * `stream.length`).
