@@ -37,14 +37,13 @@ parser.clear() // drop any buffered partial - ready for a fresh stream
 
 ### Types
 
-A `Shape` cell holds the interface's members in braces.
+A `Shape` cell holds an interface's data members as bare names in braces, `?`
+marking an optional member and `plus` introducing its call-signature members,
+and a type alias's own type literal with a union's arms escaped as `\|`.
 
-| Type                    | Kind      | Shape              | Summary                                                                                                                                                                                                                                |
-| ----------------------- | --------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NDJSONParserInterface` | interface | `{ parse, clear }` | Represents the stateful NDJSON (newline-delimited JSON) stream-parser contract a consumer holds — a `parse` that turns each string chunk into the complete records decoded so far, and a `clear` that drops the buffered partial line. |
-
-Its `parse` and `clear` members are call-signature methods, documented under
-[Methods](#methods).
+| Type                    | Kind      | Shape                  | Summary                                                                                                                                                                                                                                |
+| ----------------------- | --------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NDJSONParserInterface` | interface | `{} plus parse, clear` | Represents the stateful NDJSON (newline-delimited JSON) stream-parser contract a consumer holds — a `parse` that turns each string chunk into the complete records decoded so far, and a `clear` that drops the buffered partial line. |
 
 ```ts
 import type { NDJSONParserInterface } from '@orkestrel/ndjson'
@@ -61,6 +60,9 @@ function feed(parser: NDJSONParserInterface, chunk: string): readonly Record<str
 | `createNDJSONParser` | function | Creates an NDJSON (newline-delimited JSON) stream parser and returns it as an `NDJSONParserInterface` — a fresh `NDJSONParser` holding the buffer, so a caller holds the published contract rather than the class. |
 
 #### Create a parser
+
+Creates a parser through the factory and feeds it two complete lines, then a
+line that completes only once its own newline arrives:
 
 ```ts
 import { createNDJSONParser } from '@orkestrel/ndjson'

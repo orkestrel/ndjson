@@ -1,8 +1,6 @@
-// The guides-parity gate: @orkestrel/guide's checks run against this repository's own
-// `guides/README.md` manifest, and every flagship fence in `guides/ndjson.md` is transcribed here
-// and asserted against what its comments claim. Name resolution is not a behavioural proof, so a
-// fence documenting a value the code contradicts is exactly what the transcriptions catch. Change
-// a fence, change its transcription.
+// The consumer-side guides-parity drop-in: runs `@orkestrel/guide`'s checks against
+// this repo's own `guides/README.md` manifest. The constants that follow are this
+// package's own, as is the executed section that closes the file.
 
 import type { NDJSONParserInterface } from '@src/core'
 import { describe, expect, it } from 'vitest'
