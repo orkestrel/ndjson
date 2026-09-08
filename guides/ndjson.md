@@ -45,6 +45,9 @@ and a type alias's own type literal with a union's arms escaped as `\|`.
 | ----------------------- | --------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NDJSONParserInterface` | interface | `{} plus parse, clear` | Represents the stateful NDJSON (newline-delimited JSON) stream-parser contract a consumer holds — a `parse` that turns each string chunk into the complete records decoded so far, and a `clear` that drops the buffered partial line. |
 
+Types a helper's parameter as `NDJSONParserInterface` and returns the records
+its `parse` call completes:
+
 ```ts
 import type { NDJSONParserInterface } from '@orkestrel/ndjson'
 
