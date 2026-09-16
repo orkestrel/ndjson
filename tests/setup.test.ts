@@ -13,7 +13,7 @@
 import { NDJSONParser } from '@src/core'
 import { seededRandom } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
-import { BACKSLASH, chunkings, CR, feedAll, FF, LF, partition, TAB, VT } from './setup.js'
+import { BACKSLASH, chunkings, CR, feedAll, FF, LF, partition, tabulation, VT } from './setup.js'
 
 // A short Ollama-shaped corpus: two well-formed records around one malformed line, so
 // a chunking that loses, duplicates, or reorders a chunk changes the decoded result.
@@ -31,11 +31,11 @@ const CHUNKS: readonly string[] = [
 describe('wire constants', () => {
 	it('spells each constant as the single character its name denotes', () => {
 		// Second route: the compiler's escape table rather than `String.fromCharCode`.
-		expect([LF, CR, TAB, FF, VT, BACKSLASH]).toEqual(['\n', '\r', '\t', '\f', '\v', '\\'])
+		expect([LF, CR, tabulation, FF, VT, BACKSLASH]).toEqual(['\n', '\r', '\t', '\f', '\v', '\\'])
 	})
 
 	it('keeps every constant distinct and one character wide, so a corpus can mix them', () => {
-		const constants = [LF, CR, TAB, FF, VT, BACKSLASH]
+		const constants = [LF, CR, tabulation, FF, VT, BACKSLASH]
 
 		expect(new Set(constants).size).toBe(constants.length)
 		expect(constants.filter((constant) => constant.length !== 1)).toEqual([])
@@ -46,7 +46,7 @@ describe('wire constants', () => {
 		// BACKSLASH plus a letter. Second route: the platform's JSON grammar decodes it.
 		const decoded: unknown = JSON.parse('{"content":"a' + BACKSLASH + 'nb' + BACKSLASH + 'tc"}')
 
-		expect(decoded).toEqual({ content: 'a' + LF + 'b' + TAB + 'c' })
+		expect(decoded).toEqual({ content: 'a' + LF + 'b' + tabulation + 'c' })
 	})
 })
 

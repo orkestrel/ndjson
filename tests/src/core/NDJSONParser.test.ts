@@ -1,7 +1,7 @@
 import { NDJSONParser } from '@src/core'
 import { seededRandom } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
-import { BACKSLASH, CR, FF, LF, TAB, VT, chunkings, feedAll, partition } from '../../setup.js'
+import { BACKSLASH, CR, FF, LF, tabulation, VT, chunkings, feedAll, partition } from '../../setup.js'
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
@@ -319,7 +319,7 @@ describe('NDJSONParser — escaped vs. raw newlines inside string values', () =>
 		const parser = new NDJSONParser()
 
 		expect(parser.parse('{"content":"a' + BACKSLASH + 'tb"}' + LF)).toEqual([
-			{ content: 'a' + TAB + 'b' },
+			{ content: 'a' + tabulation + 'b' },
 		])
 	})
 
@@ -351,7 +351,7 @@ describe('NDJSONParser — whitespace-only line variety', () => {
 		const parser = new NDJSONParser()
 
 		const out = parser.parse(
-			'{"a":1}' + LF + TAB + LF + FF + LF + VT + LF + CR + LF + '{"b":2}' + LF,
+			'{"a":1}' + LF + tabulation + LF + FF + LF + VT + LF + CR + LF + '{"b":2}' + LF,
 		)
 
 		expect(out).toEqual([{ a: 1 }, { b: 2 }])
@@ -360,7 +360,7 @@ describe('NDJSONParser — whitespace-only line variety', () => {
 	it('skips a mixed run of spaces and tabs on a line', () => {
 		const parser = new NDJSONParser()
 
-		expect(parser.parse('  ' + TAB + ' ' + LF + '{"a":1}' + LF)).toEqual([{ a: 1 }])
+		expect(parser.parse('  ' + tabulation + ' ' + LF + '{"a":1}' + LF)).toEqual([{ a: 1 }])
 	})
 
 	it('emits nothing for a chunk that is exactly a single newline', () => {

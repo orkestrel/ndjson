@@ -20,7 +20,7 @@ afterEach(() => {
 // in source (a literal `'\r'` is identical, but the codepoint removes doubt).
 export const LF = String.fromCharCode(10)
 export const CR = String.fromCharCode(13)
-export const TAB = String.fromCharCode(9)
+export const tabulation = String.fromCharCode(9)
 export const FF = String.fromCharCode(12)
 export const VT = String.fromCharCode(11)
 export const BACKSLASH = String.fromCharCode(92)
