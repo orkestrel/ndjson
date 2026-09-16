@@ -1,7 +1,17 @@
 import { NDJSONParser } from '@src/core'
 import { seededRandom } from '@orkestrel/contract'
 import { describe, expect, it } from 'vitest'
-import { BACKSLASH, CR, FF, LF, tabulation, VT, chunkings, feedAll, partition } from '../../setup.js'
+import {
+	BACKSLASH,
+	CR,
+	FF,
+	LF,
+	tabulation,
+	VT,
+	chunkings,
+	feedAll,
+	partition,
+} from '../../setup.js'
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
