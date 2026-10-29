@@ -13,6 +13,21 @@ import {
 	partition,
 } from '../../setup.js'
 
+function drainStream(stream: string, size: number): ReadonlyArray<Record<string, unknown>> {
+	const parser = new NDJSONParser()
+	return Array.from({ length: Math.ceil(stream.length / size) }, (_, index) =>
+		parser.parse(stream.slice(index * size, (index + 1) * size)),
+	).flat()
+}
+
+function drainByByte(count: number): ReadonlyArray<Record<string, unknown>> {
+	const parser = new NDJSONParser()
+	const stream = Array.from({ length: count }, (_, index) => JSON.stringify({ index }) + LF).join(
+		'',
+	)
+	return Array.from(stream, (character) => parser.parse(character)).flat()
+}
+
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
 // record, and retain the trailing partial line for the next call. Records only
@@ -99,31 +114,21 @@ describe('NDJSONParser — Ollama-style stream at arbitrary chunk boundaries', (
 		{ message: { content: '' }, done: true, eval_count: 2 },
 	]
 
-	// Feed `stream` to a fresh parser in fixed-size slices and collect every record.
-	const drain = (size: number): ReadonlyArray<Record<string, unknown>> => {
-		const parser = new NDJSONParser()
-		const records: Array<Record<string, unknown>> = []
-		for (let index = 0; index < stream.length; index += size) {
-			records.push(...parser.parse(stream.slice(index, index + size)))
-		}
-		return records
-	}
-
 	it('reassembles when fed as one whole chunk', () => {
-		expect(drain(stream.length)).toEqual(expected)
+		expect(drainStream(stream, stream.length)).toEqual(expected)
 	})
 
 	it('reassembles when split mid-content / mid-key (3-char slices)', () => {
-		expect(drain(3)).toEqual(expected)
+		expect(drainStream(stream, 3)).toEqual(expected)
 	})
 
 	it('reassembles when split one character at a time', () => {
-		expect(drain(1)).toEqual(expected)
+		expect(drainStream(stream, 1)).toEqual(expected)
 	})
 
 	it('reassembles across every possible split point', () => {
 		// Exhaustive: a two-chunk split at every index reassembles identically.
-		for (let cut = 0; cut <= stream.length; cut += 1) {
+		for (const cut of Array.from({ length: stream.length + 1 }).keys()) {
 			const parser = new NDJSONParser()
 			const records = [...parser.parse(stream.slice(0, cut)), ...parser.parse(stream.slice(cut))]
 			expect(records).toEqual(expected)
@@ -131,7 +136,7 @@ describe('NDJSONParser — Ollama-style stream at arbitrary chunk boundaries', (
 	})
 
 	it('streams the content deltas in order regardless of chunking', () => {
-		const contents = drain(2).map((record) => {
+		const contents = drainStream(stream, 2).map((record) => {
 			const message = record['message']
 			return typeof message === 'object' && message !== null
 				? Reflect.get(message, 'content')
@@ -452,7 +457,7 @@ describe('NDJSONParser — value shapes and JSON semantics', () => {
 		const text = JSON.stringify(big) + LF
 
 		const records: Array<Record<string, unknown>> = []
-		for (let index = 0; index < text.length; index += 7) {
+		for (const index of Array.from({ length: Math.ceil(text.length / 7) }, (_, step) => step * 7)) {
 			records.push(...parser.parse(text.slice(index, index + 7)))
 		}
 
@@ -465,15 +470,6 @@ describe('NDJSONParser — buffer accumulation integrity over long streams', () 
 	// time, and collect everything. Pins: no record lost, none duplicated, exact
 	// stream order — that is, the append-split-retain buffering has no off-by-one or
 	// quadratic corruption no matter how granular the chunking.
-	const drainByByte = (count: number): ReadonlyArray<Record<string, unknown>> => {
-		const parser = new NDJSONParser()
-		let stream = ''
-		for (let index = 0; index < count; index += 1) stream += JSON.stringify({ index }) + LF
-		const records: Array<Record<string, unknown>> = []
-		for (const character of stream) records.push(...parser.parse(character))
-		return records
-	}
-
 	it('emits exactly N records in order for N lines fed one byte at a time', () => {
 		const records = drainByByte(250)
 
@@ -483,8 +479,9 @@ describe('NDJSONParser — buffer accumulation integrity over long streams', () 
 
 	it('emits exactly one record per line across a many-line single chunk', () => {
 		const parser = new NDJSONParser()
-		let stream = ''
-		for (let index = 0; index < 500; index += 1) stream += JSON.stringify({ index }) + LF
+		const stream = Array.from({ length: 500 }, (_, index) => JSON.stringify({ index }) + LF).join(
+			'',
+		)
 
 		const records = parser.parse(stream)
 
@@ -557,18 +554,18 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 	it('25 seeded-fuzz random partitions of the corpus all match the whole-string parse', () => {
 		const rng = seededRandom(0xc0ffee)
 
-		for (let trial = 0; trial < 25; trial += 1) {
+		Array.from({ length: 25 }, () => {
 			const chunks = partition(CORPUS, rng)
 			const parser = new NDJSONParser()
 			expect(feedAll(parser, chunks)).toEqual(EXPECTED)
-		}
+		})
 	})
 
 	it('the exhaustive two-chunk split of a smaller corpus reassembles identically at every cut', () => {
 		const small = '{"a":1}' + LF + '{"b":2}' + LF + '{"c":3}' + LF
 		const expected = new NDJSONParser().parse(small)
 
-		for (let cut = 0; cut <= small.length; cut += 1) {
+		for (const cut of Array.from({ length: small.length + 1 }).keys()) {
 			const parser = new NDJSONParser()
 			const records = feedAll(parser, [small.slice(0, cut), small.slice(cut)])
 			expect(records).toEqual(expected)
@@ -600,7 +597,7 @@ describe('NDJSONParser — unicode chunk-boundary splits (astral / combining mar
 	const expected = [{ v: value }]
 
 	it('decodes the value byte-identically at every two-chunk split index (including mid-surrogate-pair cuts)', () => {
-		for (let cut = 0; cut <= line.length; cut += 1) {
+		for (const cut of Array.from({ length: line.length + 1 }).keys()) {
 			const parser = new NDJSONParser()
 			const records = feedAll(parser, [line.slice(0, cut), line.slice(cut)])
 			expect(records).toEqual(expected)
@@ -652,13 +649,17 @@ describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)
 
 	it('thousands of small records fed in varied chunk sizes: no loss, no duplication, no reorder', () => {
 		const count = 3000
-		let stream = ''
-		for (let index = 0; index < count; index += 1) stream += JSON.stringify({ index }) + LF
+		const stream = Array.from({ length: count }, (_, index) => JSON.stringify({ index }) + LF).join(
+			'',
+		)
 
 		for (const size of [1, 4, 17, 64, 512]) {
 			const parser = new NDJSONParser()
 			const records: Array<Record<string, unknown>> = []
-			for (let position = 0; position < stream.length; position += size) {
+			for (const position of Array.from(
+				{ length: Math.ceil(stream.length / size) },
+				(_, step) => step * size,
+			)) {
 				records.push(...parser.parse(stream.slice(position, position + size)))
 			}
 
@@ -669,16 +670,20 @@ describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)
 
 	it('interleaved malformed lines within a large volume do not derail subsequent valid records', () => {
 		const count = 1000
-		let stream = ''
-		for (let index = 0; index < count; index += 1) {
-			stream += JSON.stringify({ index }) + LF
-			if (index % 7 === 0) stream += 'not json ' + String(index) + LF
-			if (index % 11 === 0) stream += '[' + String(index) + ']' + LF
-		}
+		const stream = Array.from({ length: count }, (_, index) =>
+			[
+				JSON.stringify({ index }) + LF,
+				index % 7 === 0 ? 'not json ' + String(index) + LF : '',
+				index % 11 === 0 ? '[' + String(index) + ']' + LF : '',
+			].join(''),
+		).join('')
 
 		const parser = new NDJSONParser()
 		const records: Array<Record<string, unknown>> = []
-		for (let position = 0; position < stream.length; position += 3) {
+		for (const position of Array.from(
+			{ length: Math.ceil(stream.length / 3) },
+			(_, step) => step * 3,
+		)) {
 			records.push(...parser.parse(stream.slice(position, position + 3)))
 		}
 
@@ -690,13 +695,17 @@ describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)
 describe('NDJSONParser — SSE-benchmark-scale volume battery (CI-fast, deterministic)', () => {
 	it('10,000 records fed at varied chunk sizes: no loss, no duplication, no reorder', () => {
 		const count = 10_000
-		let stream = ''
-		for (let index = 0; index < count; index += 1) stream += JSON.stringify({ index }) + LF
+		const stream = Array.from({ length: count }, (_, index) => JSON.stringify({ index }) + LF).join(
+			'',
+		)
 
 		for (const size of [1, 8, 64, 256, 1024, 4096]) {
 			const parser = new NDJSONParser()
 			const records: Array<Record<string, unknown>> = []
-			for (let position = 0; position < stream.length; position += size) {
+			for (const position of Array.from(
+				{ length: Math.ceil(stream.length / size) },
+				(_, step) => step * size,
+			)) {
 				records.push(...parser.parse(stream.slice(position, position + size)))
 			}
 
@@ -711,7 +720,10 @@ describe('NDJSONParser — SSE-benchmark-scale volume battery (CI-fast, determin
 
 		const parser = new NDJSONParser()
 		const records: Array<Record<string, unknown>> = []
-		for (let position = 0; position < line.length; position += 1024) {
+		for (const position of Array.from(
+			{ length: Math.ceil(line.length / 1024) },
+			(_, step) => step * 1024,
+		)) {
 			records.push(...parser.parse(line.slice(position, position + 1024)))
 		}
 

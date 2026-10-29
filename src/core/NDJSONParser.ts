@@ -32,14 +32,14 @@ export class NDJSONParser implements NDJSONParserInterface {
 	parse(chunk: string): ReadonlyArray<Record<string, unknown>> {
 		this.#buffer += chunk
 		const lines = this.#buffer.split('\n')
-		const records: Array<Record<string, unknown>> = []
-		for (let index = 0; index < lines.length - 1; index += 1) {
-			const line = lines[index]?.trim()
+		const records = lines.slice(0, -1).flatMap((text) => {
+			const line = text.trim()
 			if (line !== undefined && line.length > 0) {
 				const record = parseJSONAs(line, isRecord)
-				if (record !== undefined) records.push(record)
+				if (record !== undefined) return [record]
 			}
-		}
+			return []
+		})
 		this.#buffer = lines[lines.length - 1] ?? ''
 		return records
 	}

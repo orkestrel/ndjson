@@ -35,9 +35,9 @@ export function feedAll(
 	parser: NDJSONParserInterface,
 	chunks: readonly string[],
 ): ReadonlyArray<Record<string, unknown>> {
-	const records: Array<Record<string, unknown>> = []
-	for (const chunk of chunks) records.push(...parser.parse(chunk))
-	return records
+	return Iterator.from(chunks)
+		.flatMap((chunk) => parser.parse(chunk))
+		.toArray()
 }
 
 /**
@@ -51,19 +51,17 @@ export function chunkings(
 	stream: string,
 	sizes: readonly number[] = [1, 2, 3, 5, 7, 13, stream.length],
 ): ReadonlyArray<readonly string[]> {
-	const result: string[][] = []
-	for (const size of sizes) {
-		const chunks: string[] = []
-		for (let index = 0; index < stream.length; index += size) {
-			chunks.push(stream.slice(index, index + size))
-		}
-		if (chunks.length === 0) chunks.push('')
-		result.push(chunks)
-	}
-	for (let cut = 0; cut <= stream.length; cut += 1) {
-		result.push([stream.slice(0, cut), stream.slice(cut)])
-	}
-	return result
+	return [
+		...Iterator.from(sizes).map((size) =>
+			Array.from({ length: Math.max(1, Math.ceil(stream.length / size) || 0) }, (_, index) =>
+				stream.slice(index * size, (index + 1) * size),
+			),
+		),
+		...Array.from({ length: stream.length + 1 }, (_, cut) => [
+			stream.slice(0, cut),
+			stream.slice(cut),
+		]),
+	]
 }
 
 /**
@@ -72,13 +70,7 @@ export function chunkings(
  * call consumes at least one character, so it always terminates.
  */
 export function partition(stream: string, rng: () => number): readonly string[] {
-	const chunks: string[] = []
-	let index = 0
-	while (index < stream.length) {
-		const remaining = stream.length - index
-		const size = Math.max(1, Math.floor(rng() * remaining) + 1)
-		chunks.push(stream.slice(index, index + size))
-		index += size
-	}
-	return chunks
+	if (stream.length === 0) return []
+	const size = Math.max(1, Math.floor(rng() * stream.length) + 1)
+	return [stream.slice(0, size), ...partition(stream.slice(size), rng)]
 }

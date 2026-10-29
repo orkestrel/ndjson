@@ -116,12 +116,12 @@ describe('partition', () => {
 	it('splits a corpus into non-empty chunks that rejoin to it, on every seeded draw', () => {
 		const rng = seededRandom(0xc0ffee)
 
-		for (let trial = 0; trial < 25; trial += 1) {
+		Array.from({ length: 25 }, () => {
 			const chunks = partition(CORPUS, rng)
 
 			expect(chunks.join('')).toBe(CORPUS)
 			expect(chunks.filter((chunk) => chunk.length === 0)).toEqual([])
-		}
+		})
 	})
 
 	it('advances one character per draw at the bottom of the range, so it terminates', () => {
