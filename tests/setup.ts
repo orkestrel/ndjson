@@ -8,6 +8,7 @@
 // `seededRandom` directly — no local PRNG.
 
 import type { NDJSONParserInterface } from '@src/core'
+import { NDJSONParser } from '@src/core'
 import { afterEach, vi } from 'vitest'
 
 afterEach(() => {
@@ -24,6 +25,23 @@ export const tabulation = String.fromCharCode(9)
 export const FF = String.fromCharCode(12)
 export const VT = String.fromCharCode(11)
 export const BACKSLASH = String.fromCharCode(92)
+
+/** Parses a stream through fixed-size chunks and collects its records. */
+export function drainStream(stream: string, size: number): ReadonlyArray<Record<string, unknown>> {
+	const parser = new NDJSONParser()
+	return Array.from({ length: Math.ceil(stream.length / size) }, (_, index) =>
+		parser.parse(stream.slice(index * size, (index + 1) * size)),
+	).flat()
+}
+
+/** Parses numbered records one character at a time and collects them. */
+export function drainByByte(count: number): ReadonlyArray<Record<string, unknown>> {
+	const parser = new NDJSONParser()
+	const stream = Array.from({ length: count }, (_, index) => JSON.stringify({ index }) + LF).join(
+		'',
+	)
+	return Array.from(stream, (character) => parser.parse(character)).flat()
+}
 
 // ── NDJSONParser corpus-partitioning helpers (generic, environment-agnostic) ─
 

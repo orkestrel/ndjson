@@ -9,24 +9,11 @@ import {
 	tabulation,
 	VT,
 	chunkings,
+	drainStream,
+	drainByByte,
 	feedAll,
 	partition,
 } from '../../setup.js'
-
-function drainStream(stream: string, size: number): ReadonlyArray<Record<string, unknown>> {
-	const parser = new NDJSONParser()
-	return Array.from({ length: Math.ceil(stream.length / size) }, (_, index) =>
-		parser.parse(stream.slice(index * size, (index + 1) * size)),
-	).flat()
-}
-
-function drainByByte(count: number): ReadonlyArray<Record<string, unknown>> {
-	const parser = new NDJSONParser()
-	const stream = Array.from({ length: count }, (_, index) => JSON.stringify({ index }) + LF).join(
-		'',
-	)
-	return Array.from(stream, (character) => parser.parse(character)).flat()
-}
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
