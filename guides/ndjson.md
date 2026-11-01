@@ -100,7 +100,7 @@ property. The message is fixed per code and quotes no text from the refused line
 #### Create a parser
 
 Creates a parser through the factory and feeds it two complete lines, then a
-line that completes only once its own newline arrives:
+line that completes only after its own newline arrives:
 
 ```ts
 import { createNDJSONParser } from '@orkestrel/ndjson'
