@@ -1,6 +1,7 @@
-import { NDJSONParser, createNDJSONParser } from '@src/core'
+import { NDJSONParser, createNDJSONParser, isNDJSONError } from '@src/core'
+import { captureError } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
-import { feedAll } from '../../setup.js'
+import { feedAll, LF } from '../../setup.js'
 
 // The parser factory — createNDJSONParser returns a working NDJSONParserInterface.
 // Full buffering / malformed / cross-chunk behavior lives in NDJSONParser.test.ts;
@@ -59,5 +60,17 @@ describe('createNDJSONParser', () => {
 		const fromClass = feedAll(new NDJSONParser(), [corpus])
 
 		expect(fromFactory).toEqual(fromClass)
+	})
+
+	it('refuses a bad line through the factory', () => {
+		const error = captureError(() => createNDJSONParser({ strict: true }).parse('not json' + LF))
+
+		expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
+	})
+
+	it('skips a bad line when built lenient', () => {
+		const parser = createNDJSONParser({ strict: false })
+
+		expect(parser.parse('not json' + LF + '{"a":1}' + LF)).toEqual([{ a: 1 }])
 	})
 })

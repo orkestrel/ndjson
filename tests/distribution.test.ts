@@ -1,14 +1,17 @@
 // The artifact a consumer installs, measured rather than described. This workspace
 // is packed and installed into a throwaway consumer, and every following claim is read
 // off that installed tree: the exports map it publishes, the declarations it ships,
-// and the module objects a real runtime hands a consumer. Nothing here names this
-// package, one of its exports, or how many there are, so the proof stays true as
-// the published surface moves.
+// and the module objects a real runtime hands a consumer. One case names exports: the
+// error-recognition case drives `NDJSONError` and `isNDJSONError` under their brand key
+// across module formats and installed copies. Every other claim names neither this
+// package, one of its exports, nor how many there are, so it stays true as the
+// published surface moves.
 import type { SpawnSyncReturns } from 'node:child_process'
 import type { TestContext } from 'vitest'
 import { attempt, isArray, isObject, isString } from '@orkestrel/contract'
 import { spawnSync } from 'node:child_process'
 import {
+	cpSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
@@ -66,6 +69,39 @@ process.stdout.write(JSON.stringify(Object.keys(entry).sort()))
 `
 const CJS_DRIVER_SOURCE = `const entry = require(process.argv[2])
 process.stdout.write(JSON.stringify(Object.keys(entry).sort()))
+`
+
+const ERROR_DRIVER_SOURCE = `import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
+const imported = await import(process.argv[2])
+const required = createRequire(import.meta.url)(process.argv[2])
+const copied = await import(pathToFileURL(process.argv[3]).href)
+class DerivedError extends imported.NDJSONError {}
+const subclass = new DerivedError('SYNTAX', 'subclass')
+subclass.name = 'DerivedError'
+const brand = Symbol.for('@orkestrel/ndjson.NDJSONError')
+const entries = [imported, required, copied]
+assert.equal(new Set(entries.map((entry) => entry.NDJSONError)).size, entries.length)
+for (const entry of [imported, required, copied]) {
+	for (const other of [imported, required, copied]) {
+		const error = new other.NDJSONError('SYNTAX', 'closed')
+		assert.equal(entry.isNDJSONError(error), true)
+		const descriptor = Object.getOwnPropertyDescriptor(error, brand)
+		assert.equal(descriptor?.value, error)
+		assert.equal(descriptor?.enumerable, false)
+		assert.equal(descriptor?.writable, false)
+		assert.equal(entry.isNDJSONError(new Proxy(error, {})), false)
+	}
+	assert.equal(entry.isNDJSONError(subclass), true)
+	assert.equal(entry.isNDJSONError(Object.assign(new Error('look-alike'), { code: 'SYNTAX' })), false)
+	const plain = {}
+	Object.defineProperty(plain, brand, { value: plain })
+	assert.equal(entry.isNDJSONError(plain), false)
+	const invalid = new imported.NDJSONError('SYNTAX', 'invalid')
+	Object.defineProperty(invalid, 'code', { value: 'FOREIGN' })
+	assert.equal(entry.isNDJSONError(invalid), false)
+}
 `
 
 // The extensions a JavaScript handler loads as modules. Node loads a native addon
@@ -776,6 +812,21 @@ function requireStage(context: TestContext): Stage {
 }
 
 describe('installed package consumer', () => {
+	it('recognizes branded errors across module formats and installed copies [requires the registry]', (context) => {
+		const stage = requireStage(context)
+		const name = readManifestName(join(stage.installed, 'package.json'))
+		const entry = stage.entries.find((candidate) => candidate.subpath === '.')
+		const target = resolveTarget(entry?.mapping, RUNTIME_CONDITIONS.module)
+		if (target === undefined) throw new Error('The package has no import target')
+		const copy = join(stage.consumer, 'node_modules', '@orkestrel', 'ndjson-copy')
+		cpSync(stage.installed, copy, { recursive: true })
+		const driver = join(stage.consumer, 'errors.mts')
+		writeFile(driver, ERROR_DRIVER_SOURCE)
+		const result = runNode([driver, name, join(copy, target)], stage.consumer)
+		if (result.status !== 0) throw new Error(readOutput(result))
+		expect(result.status).toBe(0)
+	})
+
 	it('packs one archive and installs it in isolation [requires the registry]', (context) => {
 		const stage = requireStage(context)
 		expect(stage.archives).toHaveLength(1)

@@ -11,9 +11,27 @@
 // host-independent and the whole module is reachable from the Node `setup` project.
 
 import { NDJSONParser } from '@src/core'
-import { seededRandom } from '@orkestrel/contract'
+import { attempt, isInstance, seededRandom } from '@orkestrel/contract'
+import { captureError } from '@orkestrel/test'
 import { describe, expect, it } from 'vitest'
-import { BACKSLASH, chunkings, CR, feedAll, FF, LF, partition, tabulation, VT } from './setup.js'
+import {
+	BACKSLASH,
+	CLEAN_CORPUS,
+	CLEAN_RECORDS,
+	chunkings,
+	CR,
+	feedAll,
+	FF,
+	LF,
+	MALFORMED_LINES,
+	MIXED_CORPUS,
+	MIXED_RECORDS,
+	NON_RECORD_LINES,
+	partition,
+	tabulation,
+	TRIMMED_SPACES,
+	VT,
+} from './setup.js'
 
 // A short Ollama-shaped corpus: two well-formed records around one malformed line, so
 // a chunking that loses, duplicates, or reorders a chunk changes the decoded result.
@@ -138,5 +156,74 @@ describe('partition', () => {
 
 	it('returns no chunks for an empty stream', () => {
 		expect(partition('', () => 0)).toEqual([])
+	})
+})
+
+// Each expectation comes from the platform's JSON grammar or its regular-expression
+// whitespace class, never from the parser these fixtures feed.
+describe('strict-mode fixtures', () => {
+	it('makes JSON.parse refuse each malformed line', () => {
+		const accepted = MALFORMED_LINES.filter(([, line]) => {
+			const error = captureError(() => JSON.parse(line))
+			return !isInstance(error, SyntaxError)
+		}).map(([title]) => title)
+
+		expect(accepted).toEqual([])
+		expect(MALFORMED_LINES.filter(([, line]) => line.includes(LF) || line.includes(CR))).toEqual([])
+		expect(new Set(MALFORMED_LINES.map(([title]) => title)).size).toBe(MALFORMED_LINES.length)
+	})
+
+	it('parses each non-record line to a non-object', () => {
+		const objects = NON_RECORD_LINES.filter(([, line]) => {
+			const value: unknown = JSON.parse(line)
+			return value !== null && !Array.isArray(value) && typeof value === 'object'
+		}).map(([title]) => title)
+
+		expect(objects).toEqual([])
+		expect(new Set(NON_RECORD_LINES.map(([title]) => title)).size).toBe(NON_RECORD_LINES.length)
+	})
+
+	it('lists each code point trim strips but LF', () => {
+		const spaces = TRIMMED_SPACES.map(([, space]) => space)
+		const expected = Array.from({ length: 0x10000 }, (_, point) =>
+			String.fromCodePoint(point),
+		).filter((character) => character !== LF && /^\s$/u.test(character))
+
+		expect(new Set(TRIMMED_SPACES.map(([title]) => title)).size).toBe(TRIMMED_SPACES.length)
+		expect(spaces.filter((space) => Array.from(space).length !== 1 || space.trim() !== '')).toEqual(
+			[],
+		)
+		expect(spaces.toSorted()).toEqual(expected)
+	})
+
+	it('lets JSON.parse admit only TAB, CR, and SP', () => {
+		const admitted = TRIMMED_SPACES.filter(([, space]) => {
+			const error = captureError(() => JSON.parse('{"a":1}' + space))
+			return !isInstance(error, SyntaxError)
+		}).map(([, space]) => space)
+
+		expect(admitted).toEqual([tabulation, CR, ' '])
+	})
+
+	it('decodes CLEAN_CORPUS to CLEAN_RECORDS', () => {
+		const records = CLEAN_CORPUS.split(/\r?\n/u)
+			.filter((line) => line.trim() !== '')
+			.map((line): unknown => JSON.parse(line))
+
+		expect(records).toEqual(CLEAN_RECORDS)
+	})
+
+	it('keeps the plain objects of MIXED_CORPUS', () => {
+		const objects = MIXED_CORPUS.split(LF).flatMap((line) => {
+			const result = attempt((): unknown => JSON.parse(line))
+			return result.success &&
+				result.value !== null &&
+				typeof result.value === 'object' &&
+				Object.getPrototypeOf(result.value) === Object.prototype
+				? [result.value]
+				: []
+		})
+
+		expect(objects).toEqual(MIXED_RECORDS)
 	})
 })
