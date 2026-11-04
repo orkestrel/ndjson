@@ -27,6 +27,7 @@ import {
 	MIXED_CORPUS,
 	MIXED_RECORDS,
 	NON_RECORD_LINES,
+	NON_STRING_CHUNKS,
 	partition,
 	tabulation,
 	TRIMMED_SPACES,
@@ -82,11 +83,11 @@ describe('feedAll', () => {
 	it('returns what a manual feed loop over the same chunks collects', () => {
 		// Second route: the loop a consuming suite writes by hand. It disagrees the
 		// moment `feedAll` reorders chunks, drops one, or feeds a fresh parser per chunk.
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 		const records: Array<Record<string, unknown>> = []
 		for (const chunk of CHUNKS) records.push(...parser.parse(chunk))
 
-		expect(feedAll(new NDJSONParser(), CHUNKS)).toEqual(records)
+		expect(feedAll(new NDJSONParser({ strict: false }), CHUNKS)).toEqual(records)
 	})
 
 	it('returns no records when no chunk completes a line', () => {
@@ -181,6 +182,15 @@ describe('strict-mode fixtures', () => {
 
 		expect(objects).toEqual([])
 		expect(new Set(NON_RECORD_LINES.map(([title]) => title)).size).toBe(NON_RECORD_LINES.length)
+	})
+
+	it('lists only chunk values that are not strings', () => {
+		const strings = NON_STRING_CHUNKS.filter(([, chunk]) => typeof chunk === 'string').map(
+			([title]) => title,
+		)
+
+		expect(strings).toEqual([])
+		expect(new Set(NON_STRING_CHUNKS.map(([title]) => title)).size).toBe(NON_STRING_CHUNKS.length)
 	})
 
 	it('lists each code point trim strips but LF', () => {

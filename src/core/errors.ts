@@ -2,23 +2,23 @@ import type { NDJSONErrorCode } from './types.js'
 import { holds, INTRINSICS, isInstance } from '@orkestrel/contract'
 
 /**
- * Represents the refusal of a complete NDJSON line by a strict parser, carrying the
+ * Represents a parser's refusal of a chunk or of a complete NDJSON line, carrying the
  * machine-readable `NDJSONErrorCode` a `catch` branches on.
  *
  * @remarks
- * - **Codes.** `'SYNTAX'` marks a complete line that is not valid JSON; `'RECORD'` marks a
- *   complete line that is valid JSON but not a plain record.
+ * - **Codes.** `'SYNTAX'` marks a chunk that is not a string or a complete line that is not
+ *   valid JSON; `'RECORD'` marks a complete line that is valid JSON but not a plain record.
  * - **The refusing call.** The `parse` call that throws returns no record: it discards every
  *   line it holds, the lines after the refused one included, and leaves the parser cleared,
  *   as `clear()` leaves it.
- * - **Fixed message.** The message states what each line must hold and quotes no text from
- *   the refused line.
+ * - **Fixed message.** The message states what each line or chunk must be and quotes no text
+ *   from what it refuses.
  *
  * @example
  * ```ts
  * import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'
  *
- * const parser = createNDJSONParser({ strict: true })
+ * const parser = createNDJSONParser()
  * try {
  * 	parser.parse('{"a":\n')
  * } catch (error) {
@@ -58,7 +58,7 @@ export class NDJSONError extends Error {
  * ```ts
  * import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'
  *
- * const parser = createNDJSONParser({ strict: true })
+ * const parser = createNDJSONParser()
  * try {
  * 	parser.parse('[1,2]\n')
  * } catch (error) {

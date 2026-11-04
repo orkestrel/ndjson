@@ -232,7 +232,7 @@ await new GuideCommand({
 		})
 
 		it('returns the Errors fence code for a truncated line', () => {
-			const parser = createNDJSONParser({ strict: true })
+			const parser = createNDJSONParser()
 
 			const error = captureError(() => parser.parse('{"a":\n'))
 			expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
@@ -240,12 +240,12 @@ await new GuideCommand({
 
 		it('carries the Errors fence lines the transcription copies', () => {
 			expect(guideText).toContain(
-				"import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser({ strict: true })\ntry {\n\tparser.parse('{\"a\":\\n')\n} catch (error) {\n\tif (isNDJSONError(error)) error.code // 'SYNTAX'\n}",
+				"import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser()\ntry {\n\tparser.parse('{\"a\":\\n')\n} catch (error) {\n\tif (isNDJSONError(error)) error.code // 'SYNTAX'\n}",
 			)
 		})
 
-		it('returns the strict fence values, dropping the partial line the refusal carried', () => {
-			const parser = createNDJSONParser({ strict: true })
+		it('returns the refusal fence values, dropping the partial line the refusal carried', () => {
+			const parser = createNDJSONParser()
 
 			expect(parser.parse('{"a":1}\n\n')).toEqual([{ a: 1 }])
 			const error = captureError(() => parser.parse('[1,2]\n{"b"'))
@@ -254,30 +254,42 @@ await new GuideCommand({
 			expect(parser.parse('{"b":2}\n')).toEqual([{ b: 2 }])
 		})
 
-		it('carries the strict fence lines the transcription copies', () => {
+		it('returns the lenient fence value, skipping what the default refuses', () => {
+			const parser = createNDJSONParser({ strict: false })
+
+			expect(parser.parse('not json\n\n{"a":1}\n[1,2]\n')).toEqual([{ a: 1 }])
+		})
+
+		it('carries the lenient fence lines the transcription copies', () => {
 			expect(guideText).toContain(
-				"import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser({ strict: true })\nparser.parse('{\"a\":1}\\n\\n') // [{ a: 1 }] - a blank line is still skipped\ntry {\n\tparser.parse('[1,2]\\n{\"b\"')\n} catch (error) {\n\tif (isNDJSONError(error)) error.code // 'RECORD'\n}\nparser.parse('\\n') // [] - the refusal dropped the partial line\nparser.parse('{\"b\":2}\\n') // [{ b: 2 }]",
+				'const parser = createNDJSONParser({ strict: false })\nparser.parse(\'not json\\n\\n{"a":1}\\n[1,2]\\n\') // [{ a: 1 }] - malformed, blank, and non-record lines skipped',
 			)
 		})
 
-		it('returns the README usage fence values, lenient and strict', () => {
+		it('carries the refusal fence lines the transcription copies', () => {
+			expect(guideText).toContain(
+				"import { createNDJSONParser, isNDJSONError } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser()\nparser.parse('{\"a\":1}\\n\\n') // [{ a: 1 }] - a blank line is skipped\ntry {\n\tparser.parse('[1,2]\\n{\"b\"')\n} catch (error) {\n\tif (isNDJSONError(error)) error.code // 'RECORD'\n}\nparser.parse('\\n') // [] - the refusal dropped the partial line\nparser.parse('{\"b\":2}\\n') // [{ b: 2 }]",
+			)
+		})
+
+		it('returns the README usage fence values, default and lenient', () => {
 			const parser = createNDJSONParser()
 
 			expect(parser.parse('{"a":1}\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }])
 			expect(parser.parse('{"c":3}')).toEqual([])
 			expect(parser.parse('\n')).toEqual([{ c: 3 }])
-			expect(parser.parse('not json\n\n{"d":4}\n')).toEqual([{ d: 4 }])
+			expect(parser.parse('\n\n{"d":4}\n')).toEqual([{ d: 4 }])
+			const error = captureError(() => parser.parse('not json\n'))
+			expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
 			parser.clear()
 
-			const strict = createNDJSONParser({ strict: true })
-			expect(strict.parse('{"e":5}\n\n')).toEqual([{ e: 5 }])
-			const error = captureError(() => strict.parse('not json\n'))
-			expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
+			const lenient = createNDJSONParser({ strict: false })
+			expect(lenient.parse('not json\n\n{"e":5}\n')).toEqual([{ e: 5 }])
 		})
 
 		it('carries the README usage fence lines the transcription copies', () => {
 			expect(readmeText).toContain(
-				"import { createNDJSONParser } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser()\nparser.parse('{\"a\":1}\\n{\"b\":2}\\n') // [{ a: 1 }, { b: 2 }]\nparser.parse('{\"c\":3}') // [] - buffered until its trailing newline arrives\nparser.parse('\\n') // [{ c: 3 }]\n\nparser.parse('not json\\n\\n{\"d\":4}\\n') // [{ d: 4 }] - malformed and blank lines skipped\n\nparser.clear() // drop buffered partial line - reuse for a fresh stream\n\nconst strict = createNDJSONParser({ strict: true })\nstrict.parse('{\"e\":5}\\n\\n') // [{ e: 5 }] - blank lines still skipped\nstrict.parse('not json\\n') // throws an NDJSONError with code 'SYNTAX'",
+				"import { createNDJSONParser } from '@orkestrel/ndjson'\n\nconst parser = createNDJSONParser()\nparser.parse('{\"a\":1}\\n{\"b\":2}\\n') // [{ a: 1 }, { b: 2 }]\nparser.parse('{\"c\":3}') // [] - buffered until its trailing newline arrives\nparser.parse('\\n') // [{ c: 3 }]\n\nparser.parse('\\n\\n{\"d\":4}\\n') // [{ d: 4 }] - blank lines skipped\nparser.parse('not json\\n') // throws an NDJSONError with code 'SYNTAX'\n\nparser.clear() // drop buffered partial line - reuse for a fresh stream\n\nconst lenient = createNDJSONParser({ strict: false })\nlenient.parse('not json\\n\\n{\"e\":5}\\n') // [{ e: 5 }] - malformed and blank lines skipped",
 			)
 		})
 	})

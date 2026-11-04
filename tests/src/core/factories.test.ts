@@ -22,7 +22,7 @@ describe('createNDJSONParser', () => {
 	})
 
 	it('drops buffered state on clear', () => {
-		const parser = createNDJSONParser()
+		const parser = createNDJSONParser({ strict: false })
 
 		expect(parser.parse('{"a":1,"b')).toEqual([])
 		parser.clear()
@@ -62,8 +62,8 @@ describe('createNDJSONParser', () => {
 		expect(fromFactory).toEqual(fromClass)
 	})
 
-	it('refuses a bad line through the factory', () => {
-		const error = captureError(() => createNDJSONParser({ strict: true }).parse('not json' + LF))
+	it('refuses a bad line through the factory by default', () => {
+		const error = captureError(() => createNDJSONParser().parse('not json' + LF))
 
 		expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
 	})

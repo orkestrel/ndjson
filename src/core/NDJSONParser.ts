@@ -1,5 +1,5 @@
 import type { NDJSONParserInterface, NDJSONParserOptions } from './types.js'
-import { isRecord, parseJSON } from '@orkestrel/contract'
+import { isRecord, isString, parseJSON } from '@orkestrel/contract'
 import { NDJSONError } from './errors.js'
 
 /**
@@ -14,10 +14,12 @@ import { NDJSONError } from './errors.js'
  *   and so complete; the final segment is the trailing partial line.
  * - **Records only.** Each complete line is trimmed, a blank line is skipped, and the
  *   rest is decoded through `parseJSON` and kept only when it passes {@link isRecord}.
- *   By default a malformed line or a non-record value is skipped and `parse` never
- *   throws. A strict parser throws an `NDJSONError` instead — `'SYNTAX'` for a line that
+ *   By default a line it cannot keep throws an `NDJSONError` — `'SYNTAX'` for a line that
  *   is not valid JSON, `'RECORD'` for one that is not a plain record — and the throwing
- *   call returns no record and leaves the parser cleared, as `clear()` leaves it.
+ *   call returns no record and leaves the parser cleared, as `clear()` leaves it. A
+ *   parser built with `strict: false` skips that line instead.
+ * - **Chunks are text.** A chunk that is not a string throws `'SYNTAX'` in both modes and
+ *   leaves the parser cleared, because joining it would corrupt the buffered line.
  *
  * @example
  * ```ts
@@ -36,14 +38,21 @@ export class NDJSONParser implements NDJSONParserInterface {
 	/**
 	 * Creates a parser with an empty buffer.
 	 *
-	 * @param options - The parser options; `strict` refuses a complete line that is not a
-	 *   JSON object. Default: a lenient parser
+	 * @param options - The parser options; `strict: false` skips a complete line that is not a
+	 *   JSON object. Default: a strict parser
 	 */
 	constructor(options?: NDJSONParserOptions) {
-		this.#strict = options?.strict === true
+		this.#strict = options?.strict !== false
 	}
 
 	parse(chunk: string): ReadonlyArray<Record<string, unknown>> {
+		if (!isString(chunk)) {
+			this.#buffer = ''
+			throw new NDJSONError(
+				'SYNTAX',
+				'NDJSON chunk is not a string; decode bytes to text before parse, for example with a streaming TextDecoder',
+			)
+		}
 		const lines = (this.#buffer + chunk).split('\n')
 		this.#buffer = ''
 		const records = lines.slice(0, -1).flatMap((text) => this.#decode(text))

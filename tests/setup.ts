@@ -119,6 +119,28 @@ export const NON_RECORD_LINES: ReadonlyArray<readonly [string, string]> = Object
 	['false', 'false'],
 ])
 
+/** Lists option values that leave a parser strict: absence, `true`, and every value other than `false`. */
+export const STRICT_OPTIONS: readonly unknown[] = Object.freeze([
+	undefined,
+	{},
+	{ strict: undefined },
+	{ strict: true },
+	{ strict: 'true' },
+	{ strict: 'false' },
+	{ strict: 0 },
+])
+
+/** Lists titled chunk values that are not strings, none of which a stream ever delivers as text. */
+export const NON_STRING_CHUNKS: ReadonlyArray<readonly [string, unknown]> = Object.freeze([
+	['undefined', undefined],
+	['null', null],
+	['number', 42],
+	['boolean', true],
+	['record', {}],
+	['array', ['{"a":1}\n']],
+	['bytes', new Uint8Array([123, 125, 10])],
+])
+
 /**
  * Lists titled single code points that `String.prototype.trim` strips, every one but LF,
  * each written as an escape so no invisible or control character sits in the source.

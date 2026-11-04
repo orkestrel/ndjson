@@ -20,17 +20,18 @@ import {
 	MIXED_CORPUS,
 	MIXED_RECORDS,
 	NON_RECORD_LINES,
+	NON_STRING_CHUNKS,
+	STRICT_OPTIONS,
 	TRIMMED_SPACES,
 } from '../../setup.js'
 
 // The NDJSON stream parser — the load-bearing behavior is partial-line buffering:
 // split the buffer on `\n`, emit every COMPLETE (`\n`-terminated) line parsed to a
 // record, and retain the trailing partial line for the next call. Records only: the
-// default parser skips malformed and non-record lines and never throws, and the
-// strict-mode block pins the refusals a strict parser throws instead. A
-// never-terminated line stays buffered forever, unless a strict refusal in the same
-// call clears the buffer. Driven entirely with plain strings — no network, no
-// provider, no fakes.
+// default parser refuses a malformed or non-record line, and the blocks that build a
+// `strict: false` parser pin the opt-out that skips it. A never-terminated line stays
+// buffered forever, unless a refusal in the same call clears the buffer. Driven
+// entirely with plain strings — no network, no provider, no fakes.
 
 describe('NDJSONParser — complete lines', () => {
 	it('parses a single complete line to one record', () => {
@@ -144,28 +145,115 @@ describe('NDJSONParser — Ollama-style stream at arbitrary chunk boundaries', (
 	})
 })
 
-describe('NDJSONParser — malformed and non-record lines', () => {
-	it('skips a malformed JSON line without throwing, later valid lines still parse', () => {
+describe('NDJSONParser — default refusals', () => {
+	it('refuses a malformed line as SYNTAX with no options', () => {
+		const error = captureError(() => new NDJSONParser().parse('nope' + LF))
+
+		expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
+	})
+
+	it('refuses a non-record line as RECORD with no options', () => {
+		const error = captureError(() => new NDJSONParser().parse('[1,2]' + LF))
+
+		expect(isNDJSONError(error) && error.code).toBe('RECORD')
+	})
+
+	it('refuses under every option value but false', () => {
+		const misses = STRICT_OPTIONS.filter((options) => {
+			const error = captureError(() =>
+				Reflect.apply(NDJSONParser.prototype.parse, Reflect.construct(NDJSONParser, [options]), [
+					'nope' + LF,
+				]),
+			)
+			return !(isNDJSONError(error) && error.code === 'SYNTAX')
+		})
+
+		expect(misses).toEqual([])
+	})
+
+	it('matches an explicit strict parser over a stream that ends in a refusal', () => {
+		const stream = '{"a":1}' + LF + '{"b":' + LF + '{"c":3}' + LF
+		const outcomes = [new NDJSONParser(), new NDJSONParser({ strict: true })].map((parser) => {
+			const error = captureError(() => parser.parse(stream))
+			return isNDJSONError(error) ? [error.code, error.message] : undefined
+		})
+
+		expect(outcomes[0]).toEqual(outcomes[1])
+		expect(outcomes[0]).toEqual([
+			'SYNTAX',
+			'NDJSON line is not valid JSON; each line must hold one JSON object',
+		])
+	})
+
+	it('refuses a CR-framed stream as one malformed line when its newline arrives', () => {
 		const parser = new NDJSONParser()
+
+		expect(parser.parse('{"a":1}' + CR + '{"b":2}' + CR)).toEqual([])
+		const error = captureError(() => parser.parse(LF))
+		expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
+	})
+
+	it('ends a stream with a half record refused by the closing newline', () => {
+		const parser = new NDJSONParser()
+
+		expect(parser.parse('{"a":1}' + LF + '{"cut":')).toEqual([{ a: 1 }])
+		const error = captureError(() => parser.parse(LF))
+		expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
+	})
+})
+
+describe('NDJSONParser — non-string chunks', () => {
+	it('refuses each non-string chunk as SYNTAX in either mode', () => {
+		const misses = NON_STRING_CHUNKS.flatMap(([title, chunk]) =>
+			[new NDJSONParser(), new NDJSONParser({ strict: false })].flatMap((parser) => {
+				const error = captureError(() => Reflect.apply(parser.parse, parser, [chunk]))
+				return isNDJSONError(error) && error.code === 'SYNTAX' ? [] : [title]
+			}),
+		)
+
+		expect(misses).toEqual([])
+	})
+
+	it('names the remedy and quotes nothing from the chunk', () => {
+		const parser = new NDJSONParser()
+		const error = captureError(() => Reflect.apply(parser.parse, parser, [{ TOKEN_VALUE: 1 }]))
+
+		expect(isNDJSONError(error) && error.message).toBe(
+			'NDJSON chunk is not a string; decode bytes to text before parse, for example with a streaming TextDecoder',
+		)
+	})
+
+	it('leaves the parser cleared, as a refused line does', () => {
+		const parser = new NDJSONParser()
+
+		expect(parser.parse('{"a":1')).toEqual([])
+		captureError(() => Reflect.apply(parser.parse, parser, [undefined]))
+		expect(parser.parse('{"b":2}' + LF)).toEqual([{ b: 2 }])
+	})
+})
+
+describe('NDJSONParser — lenient opt-out: malformed and non-record lines', () => {
+	it('skips a malformed JSON line without throwing, later valid lines still parse', () => {
+		const parser = new NDJSONParser({ strict: false })
 
 		expect(parser.parse('{"a":1}\nnot json at all\n{"b":2}\n')).toEqual([{ a: 1 }, { b: 2 }])
 	})
 
 	it('drops a non-record line and keeps the records around it', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// 42 / "str" / [1,2] / null / true are valid JSON but not records — dropped.
 		expect(parser.parse('42\n"str"\n[1,2]\nnull\ntrue\n{"ok":true}\n')).toEqual([{ ok: true }])
 	})
 
 	it('drops every non-record value when no record is present', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		expect(parser.parse('1\n2\n[]\nnull\n')).toEqual([])
 	})
 
 	it('never throws on a truncated-JSON fragment left in the buffer', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// A `\n`-terminated truncated object IS a complete (malformed) line → skipped.
 		expect(parser.parse('{"oops":\n{"ok":1}\n')).toEqual([{ ok: 1 }])
@@ -221,7 +309,7 @@ describe('NDJSONParser — never-terminated line', () => {
 
 describe('NDJSONParser — clear', () => {
 	it('discards a buffered partial line so a later parse starts fresh', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// Buffer a partial line, then clear before it completes.
 		expect(parser.parse('{"a":1,"b')).toEqual([])
@@ -296,7 +384,7 @@ describe('NDJSONParser — CRLF and carriage-return handling', () => {
 	})
 
 	it('does NOT split on a lone \\r — CR-only line endings buffer entirely (limitation)', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// Old-Mac CR-only framing is NOT NDJSON: the parser splits on `\n` alone, so a
 		// `\r`-separated stream is one never-terminated line and emits nothing.
@@ -344,7 +432,7 @@ describe('NDJSONParser — escaped vs. raw newlines inside string values', () =>
 	})
 
 	it('drops a line with a RAW literal newline inside a value, surrounding records survive (limitation)', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// A raw `\n` byte inside a string is invalid JSON per spec AND splits the line
 		// in two before parsing — so the record is dropped. NDJSON forbids this and
@@ -400,7 +488,7 @@ describe('NDJSONParser — value shapes and JSON semantics', () => {
 	})
 
 	it('drops an empty-array line (a non-record value)', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		expect(parser.parse('[]' + LF + '{"ok":1}' + LF)).toEqual([{ ok: 1 }])
 	})
@@ -412,7 +500,7 @@ describe('NDJSONParser — value shapes and JSON semantics', () => {
 	})
 
 	it('drops a number with a trailing-newline that looks complete but is not an object', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		// `0`, `-0`, and `1e3` are valid JSON numbers but not records — all dropped.
 		expect(parser.parse('0' + LF + '-0' + LF + '1e3' + LF + '{"keep":true}' + LF)).toEqual([
@@ -535,7 +623,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 		'{"message":{"role":"assistant","content":""},"done":true,"eval_count":5}' +
 		LF
 
-	const EXPECTED = new NDJSONParser().parse(CORPUS)
+	const EXPECTED = new NDJSONParser({ strict: false }).parse(CORPUS)
 
 	it('quick check: the corpus decodes records, so a chunking has something to lose', () => {
 		expect(EXPECTED.length).toBe(6)
@@ -543,7 +631,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 
 	it('every fixed-size and two-way-split chunking of the corpus matches the whole-string parse', () => {
 		for (const chunks of chunkings(CORPUS)) {
-			const parser = new NDJSONParser()
+			const parser = new NDJSONParser({ strict: false })
 			expect(feedAll(parser, chunks)).toEqual(EXPECTED)
 		}
 	})
@@ -553,7 +641,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 
 		Array.from({ length: 25 }, () => {
 			const chunks = partition(CORPUS, rng)
-			const parser = new NDJSONParser()
+			const parser = new NDJSONParser({ strict: false })
 			expect(feedAll(parser, chunks)).toEqual(EXPECTED)
 		})
 	})
@@ -570,7 +658,7 @@ describe('NDJSONParser — property / invariant suite (chunking invariance)', ()
 	})
 
 	it('byte-at-a-time feeding of the corpus matches the whole-string parse', () => {
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 		const records: Array<Record<string, unknown>> = []
 		for (const character of CORPUS) records.push(...parser.parse(character))
 
@@ -612,18 +700,18 @@ describe('NDJSONParser — unicode chunk-boundary splits (astral / combining mar
 
 describe('NDJSONParser — never-throws on adversarial nesting depth', () => {
 	// `parse()` decodes each line with `parseJSON` from `@orkestrel/contract`,
-	// which catches whatever `JSON.parse` throws and returns `undefined` — so a
-	// pathological input (a stack-exhausting depth) is swallowed like any other
-	// malformed line, never fatal. Whether the RUNNING engine's `JSON.parse`
-	// actually throws a stack `RangeError` at this depth or parses it without
-	// limit is engine-dependent (the parser's contract holds either way) — the
-	// pin here is that `parse()` itself never throws, and the parser is not
+	// which catches whatever `JSON.parse` throws and returns `undefined` — so under
+	// `strict: false` a pathological input (a stack-exhausting depth) is swallowed
+	// like any other malformed line, never fatal. Whether the RUNNING engine's
+	// `JSON.parse` actually throws a stack `RangeError` at this depth or parses it
+	// without limit is engine-dependent (the parser's contract holds either way) —
+	// the pin here is that a lenient `parse()` never throws, and the parser is not
 	// derailed for whatever comes next.
 	it('never throws on an extremely deeply nested single line, and a following line still parses', () => {
 		const depth = 100_000
 		const line = '{"a":'.repeat(depth) + '1' + '}'.repeat(depth) + LF
 
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 
 		expect(() => parser.parse(line)).not.toThrow()
 		expect(parser.parse('{"ok":true}' + LF)).toEqual([{ ok: true }])
@@ -675,7 +763,7 @@ describe('NDJSONParser — volume / adversarial battery (CI-fast, deterministic)
 			].join(''),
 		).join('')
 
-		const parser = new NDJSONParser()
+		const parser = new NDJSONParser({ strict: false })
 		const records: Array<Record<string, unknown>> = []
 		for (const position of Array.from(
 			{ length: Math.ceil(stream.length / 3) },
@@ -808,10 +896,11 @@ describe('NDJSONParser — strict mode', () => {
 		}
 	})
 
-	it('matches the default when not strict', () => {
+	it('skips what the default refuses when not strict', () => {
 		for (const chunks of chunkings(MIXED_CORPUS)) {
 			expect(feedAll(new NDJSONParser({ strict: false }), chunks)).toEqual(MIXED_RECORDS)
-			expect(feedAll(new NDJSONParser(), chunks)).toEqual(MIXED_RECORDS)
+			const error = captureError(() => feedAll(new NDJSONParser(), chunks))
+			expect(isNDJSONError(error) && error.code).toBe('SYNTAX')
 		}
 	})
 
