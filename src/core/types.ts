@@ -21,8 +21,9 @@ export interface NDJSONParserInterface {
 	 * @returns Every complete line parsed to a record, in arrival order
 	 * @throws {NDJSONError} Thrown when `chunk` is not a string (`'SYNTAX'`) in either mode,
 	 *   and unless the parser is lenient, when a complete line is not valid JSON (`'SYNTAX'`)
-	 *   or not a plain record (`'RECORD'`); the call returns no record, discards the lines
-	 *   after the refused one, and leaves the parser cleared.
+	 *   or not a plain record (`'RECORD'`); the call returns no records, discards every held
+	 *   line, including earlier complete lines and the trailing partial line, and leaves
+	 *   the parser cleared.
 	 */
 	parse(chunk: string): ReadonlyArray<Record<string, unknown>>
 	/**
